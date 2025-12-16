@@ -52,10 +52,13 @@ const getAllStudents = async (req, res) => {
     `;
     const params = [];
 
-    // 🆕 YEAR FILTER
+    // YEAR FILTER - If not provided, default to current year
     if (academic_year_id) {
       query += " AND s.academic_year_id = ?";
       params.push(academic_year_id);
+    } else {
+      // Default to current academic year if no year specified
+      query += " AND ay.is_current = TRUE";
     }
 
     if (class_level) {
@@ -162,11 +165,11 @@ const createStudent = async (req, res) => {
       section,
       address,
       contact_no,
-      academic_year_id, // 🆕 From request
+      academic_year_id,
       subjects,
     } = req.body;
 
-    // 🆕 AUTO-ASSIGN CURRENT ACADEMIC YEAR IF NOT PROVIDED
+    // AUTO-ASSIGN CURRENT ACADEMIC YEAR IF NOT PROVIDED
     let yearId = academic_year_id;
 
     if (!yearId) {
@@ -214,7 +217,7 @@ const createStudent = async (req, res) => {
         address,
         contact_no,
         image_url,
-        yearId, // 🆕 Academic year
+        yearId,
       ]
     );
 
@@ -291,7 +294,7 @@ const updateStudent = async (req, res) => {
       address,
       contact_no,
       status,
-      academic_year_id, // 🆕 Allow updating year
+      academic_year_id,
       subjects,
     } = req.body;
 
@@ -347,7 +350,7 @@ const updateStudent = async (req, res) => {
       image_url,
     ];
 
-    // 🆕 Add academic year if provided
+    // Add academic year if provided
     if (academic_year_id !== undefined) {
       updateQuery += ", academic_year_id = ?";
       updateParams.push(academic_year_id);
@@ -428,7 +431,7 @@ const deleteStudent = async (req, res) => {
   }
 };
 
-// 🆕 GET STUDENTS BY YEAR FOR PROMOTION
+// GET STUDENTS BY YEAR FOR PROMOTION
 // @desc    Get students eligible for promotion
 // @route   GET /api/students/promotion/eligible?class_level=11&academic_year_id=1
 const getPromotionEligibleStudents = async (req, res) => {
@@ -473,6 +476,6 @@ module.exports = {
   createStudent,
   updateStudent,
   deleteStudent,
-  getPromotionEligibleStudents, // 🆕 Export
+  getPromotionEligibleStudents,
   upload,
 };
