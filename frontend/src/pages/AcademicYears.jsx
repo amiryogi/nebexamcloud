@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Calendar, Plus, Trash2, CheckCircle, BarChart3, Loader2 } from "lucide-react";
+import {
+  Calendar,
+  Plus,
+  Trash2,
+  CheckCircle,
+  BarChart3,
+  Loader2,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 const API_BASE_URL = "http://localhost:5000";
@@ -37,33 +44,30 @@ const AcademicYears = () => {
     fetchAcademicYears();
   }, []);
 
-const fetchAcademicYears = async () => {
-try {
-const res = await fetch(`${API_BASE_URL}/api/academic-years`, {
-headers: getAuthHeaders(),
-});
+  const fetchAcademicYears = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/academic-years`, {
+        headers: getAuthHeaders(),
+      });
 
+      if (!res.ok) throw new Error("Failed to fetch academic years");
 
-if (!res.ok) throw new Error("Failed to fetch academic years");
+      const data = await res.json();
 
-
-const data = await res.json();
-
-
-if (Array.isArray(data)) {
-setYears(data);
-} else if (Array.isArray(data.data)) {
-setYears(data.data);
-} else {
-setYears([]);
-}
-} catch (error) {
-toast.error("Failed to load academic years");
-setYears([]);
-} finally {
-setLoading(false);
-}
-};
+      if (Array.isArray(data)) {
+        setYears(data);
+      } else if (Array.isArray(data.data)) {
+        setYears(data.data);
+      } else {
+        setYears([]);
+      }
+    } catch (error) {
+      toast.error("Failed to load academic years");
+      setYears([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -230,9 +234,7 @@ setLoading(false);
           <div
             key={year.id}
             className={`bg-white p-6 rounded-xl shadow-sm border-2 ${
-              year.is_current
-                ? "border-green-500 shadow-lg"
-                : "border-gray-200"
+              year.is_current ? "border-green-500 shadow-lg" : "border-gray-200"
             } hover:shadow-md transition`}
           >
             <div className="flex justify-between items-start mb-4">
@@ -249,11 +251,12 @@ setLoading(false);
             <div className="space-y-2 text-sm text-gray-600 mb-4">
               <p>
                 <span className="font-semibold">Start:</span>{" "}
-                {year.start_date_bs} ({new Date(year.start_date_ad).toLocaleDateString()})
+                {year.start_date_bs} (
+                {new Date(year.start_date_ad).toLocaleDateString()})
               </p>
               <p>
-                <span className="font-semibold">End:</span> {year.end_date_bs}{" "}
-                ({new Date(year.end_date_ad).toLocaleDateString()})
+                <span className="font-semibold">End:</span> {year.end_date_bs} (
+                {new Date(year.end_date_ad).toLocaleDateString()})
               </p>
             </div>
 
@@ -266,14 +269,14 @@ setLoading(false);
                   <CheckCircle size={16} /> Set Current
                 </button>
               )}
-              
+
               <button
                 onClick={() => openEditModal(year)}
                 className="flex-1 bg-gray-50 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
               >
                 Edit
               </button>
-              
+
               {!year.is_current && (
                 <button
                   onClick={() => handleDelete(year.id)}
@@ -345,7 +348,10 @@ setLoading(false);
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={formData.start_date_bs}
                     onChange={(e) =>
-                      setFormData({ ...formData, start_date_bs: e.target.value })
+                      setFormData({
+                        ...formData,
+                        start_date_bs: e.target.value,
+                      })
                     }
                   />
                 </div>
@@ -360,7 +366,10 @@ setLoading(false);
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={formData.start_date_ad}
                     onChange={(e) =>
-                      setFormData({ ...formData, start_date_ad: e.target.value })
+                      setFormData({
+                        ...formData,
+                        start_date_ad: e.target.value,
+                      })
                     }
                   />
                 </div>

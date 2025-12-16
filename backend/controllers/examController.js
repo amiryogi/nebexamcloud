@@ -1,326 +1,318 @@
 const db = require("../config/db");
 
-/**
- * @desc    Get all exams with academic year filter
- * @route   GET /api/exams?academic_year_id=1
- * @access  Private
- */
+// @desc    Get all exams with Academic Year filtering
+// @route   GET /api/exams?academic_year=2080&class_level=11&faculty=Science
 const getAllExams = async (req, res) => {
   try {
-    const { academic_year_id } = req.query;
+    const { academic_year, class_level, faculty } = req.query;
 
     let query = `
       SELECT 
         e.*,
-        ay.year_name,
-        ay.is_current as is_current_year
+        COUNT(DISTINCT m.student_id) as students_appeared
       FROM exams e
-      LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
+      LEFT JOIN marks m ON e.id = m.exam_id
       WHERE 1=1
     `;
     const params = [];
 
-    // Filter by academic year if provided
-    if (academic_year_id) {
-      query += " AND e.academic_year_id = ?";
-      params.push(academic_year_id);
+    // Filter by Academic Year
+    if (academic_year) {
+      query += ` AND e.academic_year = ?`;
+      params.push(academic_year);
     }
 
-    query += " ORDER BY e.exam_date DESC";
+    // Filter by Class Level
+    if (class_level) {
+      query += ` AND e.class_level = ?`;
+      params.push(class_level);
+    }
+
+    // Filter by Faculty
+    if (faculty && faculty !== "All") {
+      query += ` AND e.faculty = ?`;
+      params.push(faculty);
+    }
+
+    query += ` GROUP BY e.id ORDER BY e.exam_date DESC, e.created_at DESC`;
 
     const [exams] = await db.query(query, params);
 
-    res.json({
-      success: true,
-      data: exams,
-    });
+    res.json(exams);
   } catch (error) {
     console.error("Get Exams Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch exams",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * @desc    Get single exam by ID
- * @route   GET /api/exams/:id
- * @access  Private
- */
+// @desc    Get single exam details
+// @route   GET /api/exams/:id
 const getExamById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const examId = req.params.id;
 
     const [exams] = await db.query(
       `SELECT 
         e.*,
-        ay.year_name,
-        ay.start_date_bs,
-        ay.end_date_bs,
-        ay.is_current as is_current_year
+        COUNT(DISTINCT m.student_id) as students_appeared,
+        COUNT(DISTINCT m.subject_id) as subjects_count
        FROM exams e
-       LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
-       WHERE e.id = ?`,
-      [id]
+       LEFT JOIN marks m ON e.id = m.exam_id
+       WHERE e.id = ?
+       GROUP BY e.id`,
+      [examId]
     );
 
     if (exams.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Exam not found",
-      });
+      return res.status(404).json({ message: "Exam not found" });
     }
 
-    // Get statistics
-    const [marksCount] = await db.query(
-      "SELECT COUNT(DISTINCT student_id) as students_appeared FROM marks WHERE exam_id = ?",
-      [id]
-    );
-
-    res.json({
-      success: true,
-      data: {
-        ...exams[0],
-        statistics: {
-          students_appeared: marksCount[0].students_appeared,
-        },
-      },
-    });
+    res.json(exams[0]);
   } catch (error) {
     console.error("Get Exam Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch exam",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * @desc    Create a new exam
- * @route   POST /api/exams
- * @access  Private
- */
+// @desc    Create a new exam
+// @route   POST /api/exams
 const createExam = async (req, res) => {
-  const connection = await db.getConnection();
-
   try {
-    await connection.beginTransaction();
-
-    const { exam_name, exam_date, is_final, academic_year_id } = req.body;
+    const {
+      exam_name,
+      exam_date,
+      academic_year,
+      class_level,
+      faculty,
+      is_final,
+      remarks,
+    } = req.body;
 
     // Validation
-    if (!exam_name || !exam_date) {
-      await connection.rollback();
+    if (!exam_name || !exam_date || !academic_year || !class_level) {
       return res.status(400).json({
-        success: false,
-        message: "Exam name and date are required",
+        message: "Exam name, date, academic year, and class level are required",
       });
     }
 
-    // Auto-assign current academic year if not provided
-    let yearId = academic_year_id;
-
-    if (!yearId) {
-      const [currentYear] = await connection.query(
-        "SELECT id FROM academic_years WHERE is_current = TRUE LIMIT 1"
-      );
-
-      if (currentYear.length === 0) {
-        await connection.rollback();
-        return res.status(400).json({
-          success: false,
-          message: "No current academic year found. Please create one first.",
-        });
-      }
-
-      yearId = currentYear[0].id;
-      console.log(`✅ Auto-assigned exam to current academic year: ${yearId}`);
+    // Validate class level
+    if (![11, 12].includes(parseInt(class_level))) {
+      return res.status(400).json({
+        message: "Class level must be 11 or 12",
+      });
     }
 
-    // Insert exam
-    const [result] = await connection.query(
-      "INSERT INTO exams (exam_name, exam_date, is_final, academic_year_id) VALUES (?, ?, ?, ?)",
-      [exam_name, exam_date, is_final || false, yearId]
+    // Validate faculty if provided
+    if (faculty && !["Science", "Management", "Humanities"].includes(faculty)) {
+      return res.status(400).json({
+        message: "Invalid faculty. Must be Science, Management, or Humanities",
+      });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO exams 
+       (exam_name, exam_date, academic_year, class_level, faculty, is_final, remarks) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        exam_name,
+        exam_date,
+        academic_year,
+        class_level,
+        faculty || null,
+        is_final ? 1 : 0,
+        remarks || null,
+      ]
     );
 
-    await connection.commit();
-
-    console.log(`✅ Exam created: ${exam_name} (Year: ${yearId})`);
+    console.log(`✅ Exam created: ${exam_name} (ID: ${result.insertId})`);
 
     res.status(201).json({
-      success: true,
       message: "Exam created successfully",
-      data: {
-        examId: result.insertId,
-        exam_name,
-        academic_year_id: yearId,
-      },
+      examId: result.insertId,
     });
   } catch (error) {
-    await connection.rollback();
     console.error("Create Exam Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create exam",
-      error: error.message,
-    });
-  } finally {
-    connection.release();
+    res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * @desc    Update exam
- * @route   PUT /api/exams/:id
- * @access  Private
- */
+// @desc    Update an exam
+// @route   PUT /api/exams/:id
 const updateExam = async (req, res) => {
-  const connection = await db.getConnection();
-
   try {
-    await connection.beginTransaction();
-
-    const { id } = req.params;
-    const { exam_name, exam_date, is_final, academic_year_id } = req.body;
+    const examId = req.params.id;
+    const {
+      exam_name,
+      exam_date,
+      academic_year,
+      class_level,
+      faculty,
+      is_final,
+      remarks,
+    } = req.body;
 
     // Check if exam exists
-    const [existing] = await connection.query(
-      "SELECT * FROM exams WHERE id = ?",
-      [id]
-    );
+    const [existing] = await db.query(`SELECT * FROM exams WHERE id = ?`, [
+      examId,
+    ]);
 
     if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "Exam not found",
-      });
+      return res.status(404).json({ message: "Exam not found" });
     }
 
-    // Build update query
-    let updateQuery = "UPDATE exams SET ";
-    const updateParams = [];
-    const updates = [];
-
-    if (exam_name !== undefined) {
-      updates.push("exam_name = ?");
-      updateParams.push(exam_name);
-    }
-
-    if (exam_date !== undefined) {
-      updates.push("exam_date = ?");
-      updateParams.push(exam_date);
-    }
-
-    if (is_final !== undefined) {
-      updates.push("is_final = ?");
-      updateParams.push(is_final);
-    }
-
-    if (academic_year_id !== undefined) {
-      updates.push("academic_year_id = ?");
-      updateParams.push(academic_year_id);
-    }
-
-    if (updates.length === 0) {
-      await connection.rollback();
+    // Validation
+    if (!exam_name || !exam_date || !academic_year || !class_level) {
       return res.status(400).json({
-        success: false,
-        message: "No fields to update",
+        message: "Exam name, date, academic year, and class level are required",
       });
     }
 
-    updateQuery += updates.join(", ") + " WHERE id = ?";
-    updateParams.push(id);
+    await db.query(
+      `UPDATE exams 
+       SET exam_name = ?, 
+           exam_date = ?, 
+           academic_year = ?, 
+           class_level = ?, 
+           faculty = ?, 
+           is_final = ?, 
+           remarks = ?
+       WHERE id = ?`,
+      [
+        exam_name,
+        exam_date,
+        academic_year,
+        class_level,
+        faculty || null,
+        is_final ? 1 : 0,
+        remarks || null,
+        examId,
+      ]
+    );
 
-    await connection.query(updateQuery, updateParams);
+    console.log(`✅ Exam updated: ${exam_name} (ID: ${examId})`);
 
-    await connection.commit();
-
-    console.log(`✅ Exam updated: ID ${id}`);
-
-    res.json({
-      success: true,
-      message: "Exam updated successfully",
-    });
+    res.json({ message: "Exam updated successfully" });
   } catch (error) {
-    await connection.rollback();
     console.error("Update Exam Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update exam",
-      error: error.message,
-    });
-  } finally {
-    connection.release();
+    res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * @desc    Delete exam
- * @route   DELETE /api/exams/:id
- * @access  Private
- */
+// @desc    Delete an exam
+// @route   DELETE /api/exams/:id
 const deleteExam = async (req, res) => {
   const connection = await db.getConnection();
-
   try {
     await connection.beginTransaction();
 
-    const { id } = req.params;
+    const examId = req.params.id;
 
-    // Check if exam exists
-    const [existing] = await connection.query(
-      "SELECT * FROM exams WHERE id = ?",
-      [id]
+    // Check if exam has marks
+    const [marks] = await connection.query(
+      `SELECT COUNT(*) as count FROM marks WHERE exam_id = ?`,
+      [examId]
     );
 
-    if (existing.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "Exam not found",
-      });
-    }
-
-    // Check if there are marks entered
-    const [marksCount] = await connection.query(
-      "SELECT COUNT(*) as total FROM marks WHERE exam_id = ?",
-      [id]
-    );
-
-    if (marksCount[0].total > 0) {
+    if (marks[0].count > 0) {
       await connection.rollback();
       return res.status(400).json({
-        success: false,
-        message: `Cannot delete: ${marksCount[0].total} marks entries exist for this exam`,
+        message:
+          "Cannot delete exam with existing marks. Please delete marks first.",
       });
     }
 
-    // Delete exam
-    await connection.query("DELETE FROM exams WHERE id = ?", [id]);
+    // Delete the exam
+    const [result] = await connection.query(`DELETE FROM exams WHERE id = ?`, [
+      examId,
+    ]);
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Exam not found" });
+    }
 
     await connection.commit();
+    console.log(`✅ Exam deleted: ID ${examId}`);
 
-    console.log(`✅ Exam deleted: ${existing[0].exam_name}`);
-
-    res.json({
-      success: true,
-      message: "Exam deleted successfully",
-    });
+    res.json({ message: "Exam deleted successfully" });
   } catch (error) {
     await connection.rollback();
     console.error("Delete Exam Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete exam",
-      error: error.message,
-    });
+    res.status(500).json({ message: error.message });
   } finally {
     connection.release();
+  }
+};
+
+// @desc    Get available academic years (from exams)
+// @route   GET /api/exams/years/list
+const getAcademicYears = async (req, res) => {
+  try {
+    const [years] = await db.query(`
+      SELECT DISTINCT academic_year 
+      FROM exams 
+      WHERE academic_year IS NOT NULL
+      ORDER BY academic_year DESC
+    `);
+
+    res.json(years.map((y) => y.academic_year));
+  } catch (error) {
+    console.error("Get Academic Years Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get exam statistics for a specific academic year
+// @route   GET /api/exams/stats/:academic_year
+const getExamStats = async (req, res) => {
+  try {
+    const { academic_year } = req.params;
+
+    // Total exams
+    const [totalExams] = await db.query(
+      `SELECT COUNT(*) as total FROM exams WHERE academic_year = ?`,
+      [academic_year]
+    );
+
+    // Exams by class
+    const [byClass] = await db.query(
+      `SELECT class_level, COUNT(*) as count 
+       FROM exams 
+       WHERE academic_year = ? 
+       GROUP BY class_level`,
+      [academic_year]
+    );
+
+    // Exams by faculty
+    const [byFaculty] = await db.query(
+      `SELECT faculty, COUNT(*) as count 
+       FROM exams 
+       WHERE academic_year = ? 
+       GROUP BY faculty`,
+      [academic_year]
+    );
+
+    // Final vs Regular exams
+    const [byType] = await db.query(
+      `SELECT 
+        SUM(CASE WHEN is_final = 1 THEN 1 ELSE 0 END) as final_exams,
+        SUM(CASE WHEN is_final = 0 THEN 1 ELSE 0 END) as regular_exams
+       FROM exams 
+       WHERE academic_year = ?`,
+      [academic_year]
+    );
+
+    res.json({
+      academic_year,
+      total_exams: totalExams[0].total,
+      by_class: byClass,
+      by_faculty: byFaculty,
+      final_exams: byType[0].final_exams || 0,
+      regular_exams: byType[0].regular_exams || 0,
+    });
+  } catch (error) {
+    console.error("Get Exam Stats Error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -330,4 +322,6 @@ module.exports = {
   createExam,
   updateExam,
   deleteExam,
+  getAcademicYears,
+  getExamStats,
 };

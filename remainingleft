@@ -1,0 +1,9 @@
+I am creating simple Student Management system more focus on Exam based on NEB 11 and 12 science and management. The web app is build upon node, mysql as backend. As frontend, I have used React created by vite with tailwind css 4.2. I have implemented core part. Now, I want to implement Academic year features. Analyze the repo and follow the following implementation Checklist. I have already done Backend Foundation  as listed below
+a. Run database schema updates (Phase 2.1)
+b. Update studentController.js (Phase 2.2) c. Create studentPromotionController.js (Phase 2.2) d. Update examController.js (Phase 2.3) e. Update dashboardController.js (Phase 2.4) f. Update reportController.js (Phase 2.5)
+I have also created some frontend files of the implementation of Academic year. For details go through this github repo https://github.com/amiryogi/nebexamcloud.git
+I need these files Next Steps:
+
+Update Sidebar.jsx - Add navigation links for new pages
+Update App.jsx - Add routes for new pages
+please create or update the file one by one and ask me for the next step.
