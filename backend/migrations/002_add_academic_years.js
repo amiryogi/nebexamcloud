@@ -13,7 +13,7 @@ const runMigration = async () => {
 
     // 1. Create academic_years table
     console.log("📝 Creating 'academic_years' table...");
-    
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS academic_years (
         id INT PRIMARY KEY AUTO_INCREMENT,
@@ -34,7 +34,7 @@ const runMigration = async () => {
 
     // 2. Check if we need to add academic_year_id to students table
     console.log("📝 Checking students table for academic_year_id...");
-    
+
     const [studentColumns] = await connection.query(
       "SHOW COLUMNS FROM students LIKE 'academic_year_id'"
     );
@@ -53,7 +53,7 @@ const runMigration = async () => {
 
     // 3. Check if we need to add academic_year_id to exams table
     console.log("📝 Checking exams table for academic_year_id...");
-    
+
     const [examColumns] = await connection.query(
       "SHOW COLUMNS FROM exams LIKE 'academic_year_id'"
     );
@@ -90,7 +90,7 @@ const runMigration = async () => {
 
       // 5. Link existing students to current academic year
       console.log("📝 Linking existing students to current academic year...");
-      
+
       const [currentYear] = await connection.query(
         "SELECT id FROM academic_years WHERE is_current = TRUE LIMIT 1"
       );
@@ -105,7 +105,7 @@ const runMigration = async () => {
 
       // 6. Link existing exams to current academic year
       console.log("📝 Linking existing exams to current academic year...");
-      
+
       if (currentYear.length > 0) {
         await connection.query(
           "UPDATE exams SET academic_year_id = ? WHERE academic_year_id IS NULL",
@@ -119,7 +119,7 @@ const runMigration = async () => {
 
     // 7. Add foreign key constraints (optional - for data integrity)
     console.log("📝 Adding foreign key constraints...");
-    
+
     try {
       // Check if constraint already exists for students
       const [studentConstraints] = await connection.query(`
@@ -159,7 +159,10 @@ const runMigration = async () => {
         console.log("✅ Foreign key added to exams table!");
       }
     } catch (error) {
-      console.log("⚠️  Foreign key constraints may already exist:", error.message);
+      console.log(
+        "⚠️  Foreign key constraints may already exist:",
+        error.message
+      );
     }
 
     console.log("🎉 Migration completed successfully!");
@@ -168,7 +171,6 @@ const runMigration = async () => {
     console.log("   2. Test the Academic Year endpoints");
     console.log("   3. Update your frontend to support year filtering");
     console.log("   4. Students and Exams now support academic years!");
-
   } catch (error) {
     console.error("❌ Migration failed:", error);
     throw error;

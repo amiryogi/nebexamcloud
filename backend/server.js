@@ -9,6 +9,7 @@ const { protect } = require("./middleware/authMiddleware");
 // Import Routes
 const authRoutes = require("./routes/authRoutes");
 const studentRoutes = require("./routes/studentRoutes");
+
 const subjectRoutes = require("./routes/subjectRoutes");
 const examRoutes = require("./routes/examRoutes");
 const marksRoutes = require("./routes/marksRoutes");
@@ -17,7 +18,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const schoolSettingsRoutes = require("./routes/schoolSettingsRoutes");
 const academicYearRoutes = require("./routes/academicYearRoutes"); // NEW - Phase 2
-
+const promotionRoutes = require("./routes/studentPromotionRoutes");
 // Load environment variables
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/api/auth", authRoutes);
 // 2. Protected Routes (Token Required)
 app.use("/api/dashboard", protect, dashboardRoutes);
 app.use("/api/students", protect, studentRoutes);
+app.use("/api/students/promote", protect, promotionRoutes); // 🆕 NEW - Must come BEFORE /api/students
 app.use("/api/subjects", protect, subjectRoutes);
 app.use("/api/exams", protect, examRoutes);
 app.use("/api/marks", protect, marksRoutes);
@@ -72,26 +74,26 @@ app.get("/test-db", async (req, res) => {
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  
+
   // Handle Multer errors
-  if (err instanceof require('multer').MulterError) {
+  if (err instanceof require("multer").MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({ 
-        message: "File too large. Maximum size is 5MB." 
+      return res.status(400).json({
+        message: "File too large. Maximum size is 5MB.",
       });
     }
-    return res.status(400).json({ 
-      message: err.message 
+    return res.status(400).json({
+      message: err.message,
     });
   }
-  
+
   // Handle custom errors
   if (err.message && err.message.includes("Only image files")) {
-    return res.status(400).json({ 
-      message: err.message 
+    return res.status(400).json({
+      message: err.message,
     });
   }
-  
+
   res.status(500).json({
     message: "Something went wrong!",
     error: process.env.NODE_ENV === "development" ? err.message : undefined,
@@ -104,6 +106,10 @@ app.listen(PORT, () => {
     `✅ Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
   );
   console.log(`📊 Dashboard API: http://localhost:${PORT}/api/dashboard/stats`);
-  console.log(`🏫 School Settings API: http://localhost:${PORT}/api/school-settings`);
-  console.log(`📅 Academic Years API: http://localhost:${PORT}/api/academic-years`);
+  console.log(
+    `🏫 School Settings API: http://localhost:${PORT}/api/school-settings`
+  );
+  console.log(
+    `📅 Academic Years API: http://localhost:${PORT}/api/academic-years`
+  );
 });
