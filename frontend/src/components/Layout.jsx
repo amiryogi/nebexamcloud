@@ -1,11 +1,15 @@
 import { Outlet } from "react-router-dom";
 import { useContext } from "react";
 import Sidebar from "./Sidebar";
-import { SchoolSettingsContext } from "../context/SchoolSettingsContext"; // 🆕 NEW
+import { SchoolSettingsContext } from "../context/SchoolSettingsContext";
 
 const Layout = () => {
-  // 🆕 Access School Settings for header
-  const { schoolName, loading: settingsLoading } = useContext(SchoolSettingsContext);
+  // 🆕 Access School Settings for header with safe fallback
+  const context = useContext(SchoolSettingsContext);
+  
+  // 🛡️ Safe fallback if context is undefined
+  const schoolName = context?.schoolName || "NEB School Management System";
+  const settingsLoading = context?.loading || false;
 
   return (
     <div className="flex h-screen bg-slate-50">

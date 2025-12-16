@@ -5,6 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { SchoolSettingsProvider } from "./context/SchoolSettingsContext"; // 🆕 ADD THIS
 import { useContext } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -41,52 +42,54 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        {/* Global Notification Popups */}
-        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <SchoolSettingsProvider> {/* 🆕 WRAP WITH SCHOOL SETTINGS PROVIDER */}
+        <Router>
+          {/* Global Notification Popups */}
+          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
-        <Routes>
-          {/* --- Public Route --- */}
-          <Route path="/login" element={<Login />} />
+          <Routes>
+            {/* --- Public Route --- */}
+            <Route path="/login" element={<Login />} />
 
-          {/* --- Protected Routes (The Main App) --- */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* Dashboard */}
-            <Route index element={<Dashboard />} />
-            
-            {/* Student Module */}
-            <Route path="students" element={<StudentList />} />
-            <Route path="students/add" element={<AddStudent />} />
-            <Route path="students/edit/:id" element={<EditStudent />} />
-            <Route path="students/:id" element={<StudentDetail />} />
-            
-            {/* Subject Management Module */}
-            <Route path="subjects" element={<Subjects />} />
-            
-            {/* Exams Module */}
-            <Route path="exams" element={<Exams />} />
-            <Route path="exams/:examId/marks" element={<MarksEntry />} />
-            
-            {/* Report Routes */}
-            <Route path="reports/gradesheet" element={<Gradesheet />} />
-            <Route path="reports/certificate" element={<Certificate />} />
-            
-            {/* Attendance Module */}
-            <Route path="attendance" element={<Attendance />} />
-            
-            {/* Settings Routes */}
-            <Route path="settings/school" element={<SchoolSettings />} />
-            <Route path="settings/academic-years" element={<AcademicYears />} /> {/* NEW - Phase 2 */}
-          </Route>
-        </Routes>
-      </Router>
+            {/* --- Protected Routes (The Main App) --- */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              {/* Dashboard */}
+              <Route index element={<Dashboard />} />
+              
+              {/* Student Module */}
+              <Route path="students" element={<StudentList />} />
+              <Route path="students/add" element={<AddStudent />} />
+              <Route path="students/edit/:id" element={<EditStudent />} />
+              <Route path="students/:id" element={<StudentDetail />} />
+              
+              {/* Subject Management Module */}
+              <Route path="subjects" element={<Subjects />} />
+              
+              {/* Exams Module */}
+              <Route path="exams" element={<Exams />} />
+              <Route path="exams/:examId/marks" element={<MarksEntry />} />
+              
+              {/* Report Routes */}
+              <Route path="reports/gradesheet" element={<Gradesheet />} />
+              <Route path="reports/certificate" element={<Certificate />} />
+              
+              {/* Attendance Module */}
+              <Route path="attendance" element={<Attendance />} />
+              
+              {/* Settings Routes */}
+              <Route path="settings/school" element={<SchoolSettings />} />
+              <Route path="settings/academic-years" element={<AcademicYears />} /> {/* NEW - Phase 2 */}
+            </Route>
+          </Routes>
+        </Router>
+      </SchoolSettingsProvider> {/* 🆕 CLOSE PROVIDER */}
     </AuthProvider>
   );
 }

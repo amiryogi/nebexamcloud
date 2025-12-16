@@ -37,20 +37,33 @@ const AcademicYears = () => {
     fetchAcademicYears();
   }, []);
 
-  const fetchAcademicYears = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/academic-years`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error("Failed to fetch academic years");
-      const data = await res.json();
-      setYears(data);
-    } catch (error) {
-      toast.error("Failed to load academic years");
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchAcademicYears = async () => {
+try {
+const res = await fetch(`${API_BASE_URL}/api/academic-years`, {
+headers: getAuthHeaders(),
+});
+
+
+if (!res.ok) throw new Error("Failed to fetch academic years");
+
+
+const data = await res.json();
+
+
+if (Array.isArray(data)) {
+setYears(data);
+} else if (Array.isArray(data.data)) {
+setYears(data.data);
+} else {
+setYears([]);
+}
+} catch (error) {
+toast.error("Failed to load academic years");
+setYears([]);
+} finally {
+setLoading(false);
+}
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();

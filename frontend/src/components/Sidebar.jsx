@@ -88,6 +88,7 @@ const Sidebar = () => {
         <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
           Reports
         </div>
+        
 
         <NavLink to="/reports/gradesheet" className={getLinkClasses}>
           <i className="ph ph-file-text text-xl"></i>
@@ -103,11 +104,27 @@ const Sidebar = () => {
         <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
           Settings
         </div>
+        
 
         <NavLink to="/settings/school" className={getLinkClasses}>
           <i className="ph ph-gear text-xl"></i>
           School Settings
         </NavLink>
+         <NavLink
+    to="/settings/academic-years"
+    className={({ isActive }) =>
+      `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isActive
+          ? "bg-blue-600 text-white"
+          : "text-gray-700 hover:bg-gray-100"
+      }`
+    }
+  >
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+    <span>Academic Years</span>
+  </NavLink>
       </nav>
 
       {/* 3. User Footer */}
