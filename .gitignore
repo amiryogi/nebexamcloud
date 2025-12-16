@@ -1,0 +1,34 @@
+# Node modules (ignore everywhere)
+node_modules/
+
+#to ignore uploads
+uploads/
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build folders
+dist/
+build/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Next.js
+.next/
+out/
+
+# React
+*.log

@@ -1,0 +1,231 @@
+-- =====================================================
+-- NEB School Student Management System
+-- MySQL 8.0+
+-- =====================================================
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- =====================================================
+-- SCHOOL SETTINGS (Scalable Final Version)
+-- =====================================================
+DROP TABLE IF EXISTS school_settings;
+
+CREATE TABLE school_settings (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+
+  school_name VARCHAR(200) NOT NULL,
+  school_address VARCHAR(200),
+  school_phone VARCHAR(20),
+  school_email VARCHAR(100),
+  school_website VARCHAR(100),
+
+  principal_name VARCHAR(100),
+  principal_signature_path VARCHAR(255),
+
+  school_logo_path VARCHAR(255),
+  school_seal_path VARCHAR(255),
+
+  neb_affiliation_no VARCHAR(50),
+  school_code VARCHAR(50),
+
+  academic_year_format ENUM('BS','AD') DEFAULT 'BS',
+  timezone VARCHAR(50) DEFAULT 'Asia/Kathmandu',
+
+  grading_system ENUM('NEB','Custom') DEFAULT 'NEB',
+  passing_percentage DECIMAL(5,2) DEFAULT 35.00,
+
+  fax_number VARCHAR(20),
+  secondary_phone VARCHAR(20),
+  secondary_email VARCHAR(100),
+
+  facebook_url VARCHAR(255),
+  twitter_url VARCHAR(255),
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO school_settings
+(school_name, school_address, principal_name)
+VALUES
+('Your School Name', 'Your School Address, Nepal', 'Principal Name');
+
+CREATE INDEX idx_school_updated ON school_settings(updated_at);
+
+-- =====================================================
+-- USERS
+-- =====================================================
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin','teacher') DEFAULT 'admin',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- STUDENTS (Core Parent Table)
+-- =====================================================
+DROP TABLE IF EXISTS students;
+
+CREATE TABLE students (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  registration_no VARCHAR(20) UNIQUE COMMENT 'NEB Registration No',
+  symbol_no VARCHAR(20) UNIQUE COMMENT 'NEB Symbol No',
+
+  first_name VARCHAR(50) NOT NULL,
+  middle_name VARCHAR(50),
+  last_name VARCHAR(50) NOT NULL,
+
+  gender ENUM('Male','Female','Other') NOT NULL,
+
+  dob_ad DATE NOT NULL,
+  dob_bs VARCHAR(15) NOT NULL,
+
+  parent_name VARCHAR(100) NOT NULL,
+  enrollment_year INT NOT NULL COMMENT 'e.g. 2080',
+  class_level ENUM('11','12') NOT NULL,
+  faculty VARCHAR(50) NOT NULL,
+  section VARCHAR(10) DEFAULT 'A',
+
+  address TEXT,
+  contact_no VARCHAR(20),
+  image_url VARCHAR(255),
+
+  status ENUM('active','alumni','dropped') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- SUBJECTS
+-- =====================================================
+DROP TABLE IF EXISTS subjects;
+
+CREATE TABLE subjects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  subject_name VARCHAR(100) NOT NULL,
+
+  theory_code VARCHAR(10),
+  practical_code VARCHAR(10),
+
+  theory_full_marks DECIMAL(5,2) DEFAULT 75.00,
+  practical_full_marks DECIMAL(5,2) DEFAULT 25.00,
+
+  theory_credit_hour DECIMAL(3,2) DEFAULT 3.00,
+  practical_credit_hour DECIMAL(3,2) DEFAULT 1.00,
+
+  total_credit_hour DECIMAL(3,2)
+    GENERATED ALWAYS AS (theory_credit_hour + practical_credit_hour) STORED,
+
+  class_level ENUM('11','12') NOT NULL,
+  faculty VARCHAR(50),
+  is_compulsory TINYINT(1) DEFAULT 0
+);
+
+-- =====================================================
+-- EXAMS
+-- =====================================================
+DROP TABLE IF EXISTS exams;
+
+CREATE TABLE exams (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  exam_name VARCHAR(100) NOT NULL,
+  exam_date DATE NOT NULL,
+  is_final TINYINT(1) DEFAULT 0
+);
+
+-- =====================================================
+-- STUDENT SUBJECT ENROLLMENT
+-- =====================================================
+DROP TABLE IF EXISTS student_subjects;
+
+CREATE TABLE student_subjects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  subject_id INT NOT NULL,
+  academic_year INT NOT NULL,
+
+  UNIQUE KEY unique_enrollment (student_id, subject_id),
+
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id)
+);
+
+-- =====================================================
+-- ATTENDANCE
+-- =====================================================
+DROP TABLE IF EXISTS attendance;
+
+CREATE TABLE attendance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  date DATE NOT NULL,
+  status ENUM('Present','Absent','Late','Leave') DEFAULT 'Absent',
+
+  UNIQUE KEY unique_attendance (student_id, date),
+
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- MARKS
+-- =====================================================
+DROP TABLE IF EXISTS marks;
+
+CREATE TABLE marks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+
+  exam_id INT NOT NULL,
+  student_id INT NOT NULL,
+  subject_id INT NOT NULL,
+
+  theory_obtained DECIMAL(5,2),
+  practical_obtained DECIMAL(5,2),
+
+  total_obtained DECIMAL(5,2)
+    GENERATED ALWAYS AS (COALESCE(theory_obtained,0) + COALESCE(practical_obtained,0)) STORED,
+
+  grade_point DECIMAL(3,2),
+  final_grade VARCHAR(2),
+
+  UNIQUE KEY unique_exam_student_subject (exam_id, student_id, subject_id),
+
+  FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id)
+);
+
+-- =====================================================
+-- CHARACTER CERTIFICATES
+-- =====================================================
+DROP TABLE IF EXISTS character_certificates;
+
+CREATE TABLE character_certificates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  certificate_no VARCHAR(50) UNIQUE NOT NULL,
+  issue_date DATE NOT NULL,
+
+  character_rating VARCHAR(50) DEFAULT 'Good',
+  conduct_rating VARCHAR(50) DEFAULT 'Satisfactory',
+
+  attendance_percentage DECIMAL(5,2),
+  total_school_days INT,
+  days_present INT,
+
+  remarks TEXT,
+  issued_by VARCHAR(100),
+  designation VARCHAR(100),
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- FINALIZE
+-- =====================================================
+SET FOREIGN_KEY_CHECKS = 1;
