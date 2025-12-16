@@ -5,7 +5,6 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
-import { SchoolSettingsProvider } from "./context/SchoolSettingsContext"; // 🆕 NEW
 import { useContext } from "react";
 import { Toaster } from "react-hot-toast";
 
@@ -24,6 +23,7 @@ import Attendance from "./pages/Attendance";
 import Subjects from "./pages/Subjects";
 import StudentDetail from "./pages/StudentDetail";
 import SchoolSettings from "./pages/SchoolSettings";
+import AcademicYears from "./pages/AcademicYears"; // NEW - Phase 2
 
 // --- Security Guard Component ---
 const ProtectedRoute = ({ children }) => {
@@ -41,54 +41,52 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      {/* 🆕 Wrap with SchoolSettingsProvider - it needs to be inside AuthProvider */}
-      <SchoolSettingsProvider>
-        <Router>
-          {/* Global Notification Popups */}
-          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <Router>
+        {/* Global Notification Popups */}
+        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
-          <Routes>
-            {/* --- Public Route --- */}
-            <Route path="/login" element={<Login />} />
+        <Routes>
+          {/* --- Public Route --- */}
+          <Route path="/login" element={<Login />} />
 
-            {/* --- Protected Routes (The Main App) --- */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              {/* Dashboard */}
-              <Route index element={<Dashboard />} />
-
-              {/* Student Module */}
-              <Route path="students" element={<StudentList />} />
-              <Route path="students/add" element={<AddStudent />} />
-              <Route path="students/edit/:id" element={<EditStudent />} />
-              <Route path="students/:id" element={<StudentDetail />} />
-
-              {/* Subject Management Module */}
-              <Route path="subjects" element={<Subjects />} />
-
-              {/* Exams Module */}
-              <Route path="exams" element={<Exams />} />
-              <Route path="exams/:examId/marks" element={<MarksEntry />} />
-
-              {/* Report Routes */}
-              <Route path="reports/gradesheet" element={<Gradesheet />} />
-              <Route path="reports/certificate" element={<Certificate />} />
-
-              {/* Attendance Module */}
-              <Route path="attendance" element={<Attendance />} />
-
-              {/* School Settings */}
-              <Route path="settings/school" element={<SchoolSettings />} />
-            </Route>
-          </Routes>
-        </Router>
-      </SchoolSettingsProvider>
+          {/* --- Protected Routes (The Main App) --- */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Dashboard */}
+            <Route index element={<Dashboard />} />
+            
+            {/* Student Module */}
+            <Route path="students" element={<StudentList />} />
+            <Route path="students/add" element={<AddStudent />} />
+            <Route path="students/edit/:id" element={<EditStudent />} />
+            <Route path="students/:id" element={<StudentDetail />} />
+            
+            {/* Subject Management Module */}
+            <Route path="subjects" element={<Subjects />} />
+            
+            {/* Exams Module */}
+            <Route path="exams" element={<Exams />} />
+            <Route path="exams/:examId/marks" element={<MarksEntry />} />
+            
+            {/* Report Routes */}
+            <Route path="reports/gradesheet" element={<Gradesheet />} />
+            <Route path="reports/certificate" element={<Certificate />} />
+            
+            {/* Attendance Module */}
+            <Route path="attendance" element={<Attendance />} />
+            
+            {/* Settings Routes */}
+            <Route path="settings/school" element={<SchoolSettings />} />
+            <Route path="settings/academic-years" element={<AcademicYears />} /> {/* NEW - Phase 2 */}
+          </Route>
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }

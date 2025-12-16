@@ -18,6 +18,10 @@ const NEBGradesheet = () => {
   const [batchData, setBatchData] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // NEW: School Settings State
+  const [schoolSettings, setSchoolSettings] = useState(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
   const getAuthHeaders = () => {
     let token = localStorage.getItem("token");
     if (!token) {
@@ -35,6 +39,7 @@ const NEBGradesheet = () => {
   useEffect(() => {
     loadStudents();
     loadExams();
+    loadSchoolSettings(); // NEW: Load school settings
   }, []);
 
   useEffect(() => {
@@ -51,6 +56,31 @@ const NEBGradesheet = () => {
     );
     setFilteredStudents(results);
   }, [searchTerm, students]);
+
+  // NEW: Load School Settings
+  const loadSchoolSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/school-settings`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch school settings");
+      const data = await res.json();
+      setSchoolSettings(data);
+    } catch (error) {
+      console.error("Failed to load school settings:", error);
+      // Set default fallback
+      setSchoolSettings({
+        school_name: "Your School Name",
+        school_address: "Your School Address",
+        principal_name: "Principal Name",
+        school_logo_path: null,
+        school_seal_path: null,
+        principal_signature_path: null,
+      });
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -146,6 +176,16 @@ const NEBGradesheet = () => {
   };
 
   const handlePrint = () => window.print();
+
+  // Show loading state if school settings aren't loaded yet
+  if (loadingSettings) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 print:p-0 print:bg-white">
@@ -289,55 +329,84 @@ const NEBGradesheet = () => {
         </div>
       )}
 
-      {!loading && viewMode === "single" && reportData && (
-        <GradesheetTemplate data={reportData} />
+      {!loading && viewMode === "single" && reportData && schoolSettings && (
+        <GradesheetTemplate data={reportData} schoolSettings={schoolSettings} />
       )}
       {!loading &&
         viewMode === "batch" &&
         batchData.length > 0 &&
+        schoolSettings &&
         batchData.map((report, idx) => (
-          <GradesheetTemplate key={idx} data={report} />
+          <GradesheetTemplate key={idx} data={report} schoolSettings={schoolSettings} />
         ))}
     </div>
   );
 };
 
-const GradesheetTemplate = ({ data }) => {
+const GradesheetTemplate = ({ data, schoolSettings }) => {
   return (
     <div
       className="bg-white mx-auto print:break-after-page"
       style={{ width: "210mm", minHeight: "297mm", padding: "15mm 15mm" }}
     >
-      {/* Header with Logo */}
+      {/* Header with Logo and School Info */}
       <div className="flex items-start gap-4 mb-6">
+        {/* School Logo */}
         <div className="w-20 h-20 flex-shrink-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full">
-            <circle
-              cx="50"
-              cy="50"
-              r="48"
-              fill="none"
-              stroke="black"
-              strokeWidth="2"
+          {schoolSettings.school_logo_path ? (
+            <img
+              src={`${API_BASE_URL}${schoolSettings.school_logo_path}`}
+              alt="School Logo"
+              className="w-full h-full object-contain"
             />
-            <text
-              x="50"
-              y="55"
-              textAnchor="middle"
-              fontSize="12"
-              fontWeight="bold"
-            >
-              SVI
-            </text>
-          </svg>
+          ) : (
+            <svg viewBox="0 0 100 100" className="w-full h-full">
+              <circle
+                cx="50"
+                cy="50"
+                r="48"
+                fill="none"
+                stroke="black"
+                strokeWidth="2"
+              />
+              <text
+                x="50"
+                y="55"
+                textAnchor="middle"
+                fontSize="12"
+                fontWeight="bold"
+              >
+                LOGO
+              </text>
+            </svg>
+          )}
         </div>
+
+        {/* School Name and Address */}
         <div className="flex-1 text-center">
           <h1 className="text-3xl font-bold mb-1">
-            Siddhartha Vanasthali Institute
+            {schoolSettings.school_name}
           </h1>
-          <p className="text-sm mb-3">Balaju, Kathmandu</p>
-          <h2 className="text-2xl font-bold mb-4">GRADE-SHEET</h2>
+          <p className="text-sm mb-3">{schoolSettings.school_address}</p>
+          {schoolSettings.school_phone && (
+            <p className="text-xs text-gray-600">
+              Phone: {schoolSettings.school_phone}
+              {schoolSettings.school_email && ` | Email: ${schoolSettings.school_email}`}
+            </p>
+          )}
+          <h2 className="text-2xl font-bold mb-4 mt-2">GRADE-SHEET</h2>
         </div>
+
+        {/* School Seal (Optional) */}
+        {schoolSettings.school_seal_path && (
+          <div className="w-20 h-20 flex-shrink-0">
+            <img
+              src={`${API_BASE_URL}${schoolSettings.school_seal_path}`}
+              alt="School Seal"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
       </div>
 
       {/* Student Info */}
@@ -424,20 +493,16 @@ const GradesheetTemplate = ({ data }) => {
           </tr>
         </thead>
         <tbody>
-          {console.log(data)}
           {data.subjects &&
             data.subjects.map((sub, idx) => {
-              // Get subject codes
               const theoryCode = sub.theory_code || sub.subject_code || "";
               const practicalCode = sub.practical_code || "";
 
-              // Get grades - from backend calculations
               const theoryGP = parseFloat(sub.theory_grade_point || 0);
               const practicalGP = parseFloat(sub.practical_grade_point || 0);
               const theoryGrade = sub.theory_grade || "NG";
               const practicalGrade = sub.practical_grade || "NG";
 
-              // Final grade should be already calculated by backend
               const finalGrade = sub.final_grade || "NG";
               const finalGP = parseFloat(
                 sub.final_grade_point || sub.grade_point || 0
@@ -505,7 +570,7 @@ const GradesheetTemplate = ({ data }) => {
         </tfoot>
       </table>
 
-      {/* Footer */}
+      {/* Footer with Principal Signature */}
       <div className="mt-12 text-xs">
         <div className="flex justify-between mb-8">
           <div>
@@ -516,9 +581,20 @@ const GradesheetTemplate = ({ data }) => {
           </div>
         </div>
         <div className="text-right">
-          <p>........................................</p>
-          <p className="font-bold">MANU RAJA SHAKYA</p>
-          <p className="font-bold">CAMPUS CHIEF</p>
+          {/* Principal Signature */}
+          {schoolSettings.principal_signature_path ? (
+            <div className="mb-2">
+              <img
+                src={`${API_BASE_URL}${schoolSettings.principal_signature_path}`}
+                alt="Principal Signature"
+                className="h-12 ml-auto object-contain"
+              />
+            </div>
+          ) : (
+            <p>........................................</p>
+          )}
+          <p className="font-bold">{schoolSettings.principal_name}</p>
+          <p className="font-bold">PRINCIPAL</p>
         </div>
         <div className="mt-4">
           <p>

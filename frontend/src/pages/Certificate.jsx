@@ -10,6 +10,10 @@ const Certificate = () => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // NEW: School Settings State
+  const [schoolSettings, setSchoolSettings] = useState(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   // Certificate Data
   const [certificateData, setCertificateData] = useState({
@@ -36,6 +40,7 @@ const Certificate = () => {
 
   useEffect(() => {
     loadStudents();
+    loadSchoolSettings(); // NEW: Load school settings
   }, []);
 
   useEffect(() => {
@@ -52,6 +57,32 @@ const Certificate = () => {
     );
     setFilteredStudents(results);
   }, [searchTerm, students]);
+
+  // NEW: Load School Settings
+  const loadSchoolSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/school-settings`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch school settings");
+      const data = await res.json();
+      setSchoolSettings(data);
+    } catch (error) {
+      console.error("Failed to load school settings:", error);
+      toast.error("Failed to load school information. Using defaults.");
+      // Set default fallback
+      setSchoolSettings({
+        school_name: "Your School Name",
+        school_address: "Your School Address",
+        principal_name: "Principal Name",
+        school_logo_path: null,
+        school_seal_path: null,
+        principal_signature_path: null,
+      });
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -94,6 +125,16 @@ const Certificate = () => {
       [e.target.name]: e.target.value,
     });
   };
+
+  // Show loading state if school settings aren't loaded yet
+  if (loadingSettings) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        <span className="ml-3 text-gray-600">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 print:p-0 print:bg-white">
@@ -266,7 +307,7 @@ const Certificate = () => {
         </div>
       )}
 
-      {!loading && selectedStudent && (
+      {!loading && selectedStudent && schoolSettings && (
         <div
           className="bg-white mx-auto shadow-lg print:shadow-none mt-8 print:mt-0"
           style={{
@@ -275,15 +316,46 @@ const Certificate = () => {
             padding: "25mm 20mm",
           }}
         >
-          {/* Certificate Header */}
+          {/* Certificate Header with Logo */}
           <div className="text-center mb-8 pb-6 border-b-4 border-purple-600">
-            <h2 className="text-4xl font-bold text-purple-800 mb-2">
-              Mt. Everest Model Secondary School
-            </h2>
-            <p className="text-lg text-gray-600">Kathmandu, Nepal</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Affiliated to National Examination Board (NEB)
-            </p>
+            <div className="flex items-center justify-center gap-6 mb-4">
+              {/* School Logo */}
+              {schoolSettings.school_logo_path && (
+                <img
+                  src={`${API_BASE_URL}${schoolSettings.school_logo_path}`}
+                  alt="School Logo"
+                  className="w-24 h-24 object-contain"
+                />
+              )}
+              
+              <div>
+                <h2 className="text-4xl font-bold text-purple-800 mb-2">
+                  {schoolSettings.school_name}
+                </h2>
+                <p className="text-lg text-gray-600">
+                  {schoolSettings.school_address}
+                </p>
+                {schoolSettings.school_phone && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Phone: {schoolSettings.school_phone}
+                  </p>
+                )}
+                {schoolSettings.school_email && (
+                  <p className="text-sm text-gray-500">
+                    Email: {schoolSettings.school_email}
+                  </p>
+                )}
+              </div>
+
+              {/* School Seal (if available) */}
+              {schoolSettings.school_seal_path && (
+                <img
+                  src={`${API_BASE_URL}${schoolSettings.school_seal_path}`}
+                  alt="School Seal"
+                  className="w-24 h-24 object-contain"
+                />
+              )}
+            </div>
           </div>
 
           {/* Certificate Title */}
@@ -392,16 +464,42 @@ const Certificate = () => {
             </div>
 
             <div className="text-center">
-              <div className="w-48 border-b-2 border-black mb-2"></div>
+              {/* Principal Signature Image */}
+              {schoolSettings.principal_signature_path ? (
+                <div className="mb-2">
+                  <img
+                    src={`${API_BASE_URL}${schoolSettings.principal_signature_path}`}
+                    alt="Principal Signature"
+                    className="h-16 mx-auto object-contain"
+                  />
+                  <div className="w-48 border-b-2 border-black"></div>
+                </div>
+              ) : (
+                <div className="w-48 border-b-2 border-black mb-2"></div>
+              )}
+              <p className="font-bold text-sm uppercase">
+                {schoolSettings.principal_name}
+              </p>
               <p className="font-bold text-sm uppercase">Principal</p>
             </div>
           </div>
 
           {/* School Stamp Area */}
           <div className="mt-12 text-center">
-            <div className="inline-block border-2 border-dashed border-gray-400 px-12 py-8 rounded-lg">
-              <p className="text-gray-400 text-sm">School Stamp</p>
-            </div>
+            {schoolSettings.school_seal_path ? (
+              <div className="inline-block">
+                <img
+                  src={`${API_BASE_URL}${schoolSettings.school_seal_path}`}
+                  alt="School Seal"
+                  className="h-24 object-contain"
+                />
+                <p className="text-xs text-gray-500 mt-2">Official School Seal</p>
+              </div>
+            ) : (
+              <div className="inline-block border-2 border-dashed border-gray-400 px-12 py-8 rounded-lg">
+                <p className="text-gray-400 text-sm">School Stamp</p>
+              </div>
+            )}
           </div>
         </div>
       )}

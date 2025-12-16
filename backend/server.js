@@ -15,7 +15,8 @@ const marksRoutes = require("./routes/marksRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-const schoolSettingsRoutes = require("./routes/schoolSettingsRoutes"); // NEW
+const schoolSettingsRoutes = require("./routes/schoolSettingsRoutes");
+const academicYearRoutes = require("./routes/academicYearRoutes"); // NEW - Phase 2
 
 // Load environment variables
 dotenv.config();
@@ -29,7 +30,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Static Folders for Uploads
-app.use("/uploads", express.static("uploads")); // Serves all uploads (students + school)
+app.use("/uploads", express.static("uploads"));
 
 // --- API Routes ---
 
@@ -44,7 +45,8 @@ app.use("/api/exams", protect, examRoutes);
 app.use("/api/marks", protect, marksRoutes);
 app.use("/api/reports", protect, reportRoutes);
 app.use("/api/attendance", protect, attendanceRoutes);
-app.use("/api/school-settings", protect, schoolSettingsRoutes); // NEW - School Settings
+app.use("/api/school-settings", protect, schoolSettingsRoutes);
+app.use("/api/academic-years", protect, academicYearRoutes); // NEW - Phase 2
 
 // Basic Route to Test Server
 app.get("/", (req, res) => {
@@ -70,26 +72,26 @@ app.get("/test-db", async (req, res) => {
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-
+  
   // Handle Multer errors
-  if (err instanceof multer.MulterError) {
+  if (err instanceof require('multer').MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        message: "File too large. Maximum size is 5MB.",
+      return res.status(400).json({ 
+        message: "File too large. Maximum size is 5MB." 
       });
     }
-    return res.status(400).json({
-      message: err.message,
+    return res.status(400).json({ 
+      message: err.message 
     });
   }
-
+  
   // Handle custom errors
   if (err.message && err.message.includes("Only image files")) {
-    return res.status(400).json({
-      message: err.message,
+    return res.status(400).json({ 
+      message: err.message 
     });
   }
-
+  
   res.status(500).json({
     message: "Something went wrong!",
     error: process.env.NODE_ENV === "development" ? err.message : undefined,
@@ -102,7 +104,6 @@ app.listen(PORT, () => {
     `✅ Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
   );
   console.log(`📊 Dashboard API: http://localhost:${PORT}/api/dashboard/stats`);
-  console.log(
-    `🏫 School Settings API: http://localhost:${PORT}/api/school-settings`
-  );
+  console.log(`🏫 School Settings API: http://localhost:${PORT}/api/school-settings`);
+  console.log(`📅 Academic Years API: http://localhost:${PORT}/api/academic-years`);
 });
