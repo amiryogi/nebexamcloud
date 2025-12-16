@@ -1,5 +1,6 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
+import { AuthContext } from "./AuthContext"; // Import AuthContext
 
 // Create the Context
 export const SchoolSettingsContext = createContext();
@@ -9,9 +10,19 @@ const API_BASE_URL = "http://localhost:5000";
 
 // Provider Component
 export const SchoolSettingsProvider = ({ children }) => {
+  const { user } = useContext(AuthContext);
   const [schoolSettings, setSchoolSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Fetch school settings ONLY when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchSchoolSettings();
+    } else {
+      // User not logged in, just use default values
+      setLoading(false);
+    }
+  }, [user]); // Re-run when user changes
 
   // Helper to get auth headers
   const getAuthHeaders = () => {
@@ -44,7 +55,7 @@ export const SchoolSettingsProvider = ({ children }) => {
       console.log("✅ School settings loaded:", response.data);
     } catch (err) {
       console.error("❌ Failed to load school settings:", err);
-      
+
       // Set default fallback values if API fails
       setSchoolSettings({
         school_name: "School Management System",
@@ -57,7 +68,7 @@ export const SchoolSettingsProvider = ({ children }) => {
         school_seal_path: null,
         principal_signature_path: null,
       });
-      
+
       setError(err.response?.data?.message || "Failed to load school settings");
     } finally {
       setLoading(false);
@@ -87,19 +98,19 @@ export const SchoolSettingsProvider = ({ children }) => {
     error,
     refreshSettings,
     getImageUrl,
-    
+
     // Convenient shortcuts for commonly used values
     schoolName: schoolSettings?.school_name || "School Management System",
     schoolAddress: schoolSettings?.school_address || "",
     principalName: schoolSettings?.principal_name || "Principal",
-    logoUrl: schoolSettings?.school_logo_path 
-      ? getImageUrl(schoolSettings.school_logo_path) 
+    logoUrl: schoolSettings?.school_logo_path
+      ? getImageUrl(schoolSettings.school_logo_path)
       : null,
-    sealUrl: schoolSettings?.school_seal_path 
-      ? getImageUrl(schoolSettings.school_seal_path) 
+    sealUrl: schoolSettings?.school_seal_path
+      ? getImageUrl(schoolSettings.school_seal_path)
       : null,
-    signatureUrl: schoolSettings?.principal_signature_path 
-      ? getImageUrl(schoolSettings.principal_signature_path) 
+    signatureUrl: schoolSettings?.principal_signature_path
+      ? getImageUrl(schoolSettings.principal_signature_path)
       : null,
   };
 

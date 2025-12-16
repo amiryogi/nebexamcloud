@@ -1,0 +1,12 @@
+SELECT *
+INTO OUTFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/subjects.csv'
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM subjects;
+
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/student_subjects.csv'
+INTO TABLE student_subjects
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n';
