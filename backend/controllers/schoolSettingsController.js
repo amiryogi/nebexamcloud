@@ -6,17 +6,21 @@ const { deleteOldFile } = require("../middleware/schoolUploadMiddleware");
 // @access  Private
 const getSchoolSettings = async (req, res) => {
   try {
+    console.log("📥 GET /api/school-settings - Fetching settings...");
+
     const [rows] = await db.query("SELECT * FROM school_settings WHERE id = 1");
 
     if (rows.length === 0) {
+      console.log("❌ No school settings found in database");
       return res.status(404).json({
         message: "School settings not found. Please run migration script.",
       });
     }
 
+    console.log("✅ School settings found:", rows[0]);
     res.json(rows[0]);
   } catch (error) {
-    console.error("Get School Settings Error:", error);
+    console.error("❌ Get School Settings Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -26,6 +30,9 @@ const getSchoolSettings = async (req, res) => {
 // @access  Private
 const updateSchoolSettings = async (req, res) => {
   try {
+    console.log("📝 PUT /api/school-settings - Updating settings...");
+    console.log("Request body:", req.body);
+
     const {
       school_name,
       school_address,
@@ -37,6 +44,7 @@ const updateSchoolSettings = async (req, res) => {
 
     // Validation
     if (!school_name || !school_address || !principal_name) {
+      console.log("❌ Validation failed: Missing required fields");
       return res.status(400).json({
         message: "School name, address, and principal name are required.",
       });
@@ -52,38 +60,66 @@ const updateSchoolSettings = async (req, res) => {
       }
     }
 
-    // Update query
-    await db.query(
-      `UPDATE school_settings 
-       SET school_name = ?, 
-           school_address = ?, 
-           school_phone = ?, 
-           school_email = ?, 
-           school_website = ?, 
-           principal_name = ?,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = 1`,
-      [
-        school_name,
-        school_address,
-        school_phone || null,
-        school_email || null,
-        school_website || null,
-        principal_name,
-      ]
+    // Check if row exists first
+    const [existing] = await db.query(
+      "SELECT * FROM school_settings WHERE id = 1"
     );
+
+    if (existing.length === 0) {
+      console.log("⚠️ No existing row found, creating new one...");
+      // Insert if doesn't exist
+      await db.query(
+        `INSERT INTO school_settings 
+         (id, school_name, school_address, school_phone, school_email, school_website, principal_name) 
+         VALUES (1, ?, ?, ?, ?, ?, ?)`,
+        [
+          school_name,
+          school_address,
+          school_phone || null,
+          school_email || null,
+          school_website || null,
+          principal_name,
+        ]
+      );
+    } else {
+      console.log("🔄 Updating existing row...");
+      // Update if exists
+      const [result] = await db.query(
+        `UPDATE school_settings 
+         SET school_name = ?, 
+             school_address = ?, 
+             school_phone = ?, 
+             school_email = ?, 
+             school_website = ?, 
+             principal_name = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = 1`,
+        [
+          school_name,
+          school_address,
+          school_phone || null,
+          school_email || null,
+          school_website || null,
+          principal_name,
+        ]
+      );
+
+      console.log("Update result:", result);
+    }
 
     // Fetch updated settings
     const [updated] = await db.query(
       "SELECT * FROM school_settings WHERE id = 1"
     );
 
+    console.log("✅ Settings updated successfully:", updated[0]);
+
     res.json({
       message: "School settings updated successfully",
       data: updated[0],
     });
   } catch (error) {
-    console.error("Update School Settings Error:", error);
+    console.error("❌ Update School Settings Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -93,9 +129,14 @@ const updateSchoolSettings = async (req, res) => {
 // @access  Private
 const uploadLogo = async (req, res) => {
   try {
+    console.log("📤 POST /api/school-settings/upload-logo");
+
     if (!req.file) {
+      console.log("❌ No file uploaded");
       return res.status(400).json({ message: "No file uploaded" });
     }
+
+    console.log("📁 File received:", req.file);
 
     const logoPath = `/uploads/school/logos/${req.file.filename}`;
 
@@ -109,11 +150,12 @@ const uploadLogo = async (req, res) => {
     }
 
     // Update database
-    await db.query(
+    const [result] = await db.query(
       "UPDATE school_settings SET school_logo_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
       [logoPath]
     );
 
+    console.log("Database update result:", result);
     console.log("✅ School logo uploaded:", logoPath);
 
     res.json({
@@ -121,7 +163,7 @@ const uploadLogo = async (req, res) => {
       logoPath,
     });
   } catch (error) {
-    console.error("Upload Logo Error:", error);
+    console.error("❌ Upload Logo Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -131,6 +173,8 @@ const uploadLogo = async (req, res) => {
 // @access  Private
 const uploadSeal = async (req, res) => {
   try {
+    console.log("📤 POST /api/school-settings/upload-seal");
+
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
@@ -159,7 +203,7 @@ const uploadSeal = async (req, res) => {
       sealPath,
     });
   } catch (error) {
-    console.error("Upload Seal Error:", error);
+    console.error("❌ Upload Seal Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -169,6 +213,8 @@ const uploadSeal = async (req, res) => {
 // @access  Private
 const uploadSignature = async (req, res) => {
   try {
+    console.log("📤 POST /api/school-settings/upload-signature");
+
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
@@ -197,7 +243,7 @@ const uploadSignature = async (req, res) => {
       signaturePath,
     });
   } catch (error) {
-    console.error("Upload Signature Error:", error);
+    console.error("❌ Upload Signature Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -224,7 +270,7 @@ const deleteLogo = async (req, res) => {
       res.status(404).json({ message: "No logo found to delete" });
     }
   } catch (error) {
-    console.error("Delete Logo Error:", error);
+    console.error("❌ Delete Logo Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -251,7 +297,7 @@ const deleteSeal = async (req, res) => {
       res.status(404).json({ message: "No seal found to delete" });
     }
   } catch (error) {
-    console.error("Delete Seal Error:", error);
+    console.error("❌ Delete Seal Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -278,7 +324,7 @@ const deleteSignature = async (req, res) => {
       res.status(404).json({ message: "No signature found to delete" });
     }
   } catch (error) {
-    console.error("Delete Signature Error:", error);
+    console.error("❌ Delete Signature Error:", error);
     res.status(500).json({ message: error.message });
   }
 };

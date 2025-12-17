@@ -3,7 +3,7 @@ import axios from "axios";
 import { AuthContext } from "./AuthContext";
 
 // Create the Context
-export const SchoolSettingsContext = createContext();
+const SchoolSettingsContext = createContext();
 
 // API Base URL
 const API_BASE_URL = "http://localhost:5000";
@@ -15,7 +15,7 @@ export const SchoolSettingsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔧 FIX: Single useEffect with proper logic
+  // 🔧 Single useEffect with proper logic
   useEffect(() => {
     if (user) {
       // User is logged in - fetch real settings
@@ -60,6 +60,7 @@ export const SchoolSettingsProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      console.log("🔄 Fetching school settings...");
       const response = await axios.get(`${API_BASE_URL}/api/school-settings`, {
         headers: getAuthHeaders(),
       });
@@ -130,3 +131,20 @@ export const SchoolSettingsProvider = ({ children }) => {
     </SchoolSettingsContext.Provider>
   );
 };
+
+// Custom Hook to use School Settings
+export const useSchoolSettings = () => {
+  const context = useContext(SchoolSettingsContext);
+  if (context === undefined) {
+    throw new Error(
+      "useSchoolSettings must be used within SchoolSettingsProvider"
+    );
+  }
+  return context;
+};
+
+// Named export for direct context access (if needed)
+export { SchoolSettingsContext };
+
+// Default export
+export default SchoolSettingsContext;
