@@ -56,9 +56,9 @@ const getDashboardStats = async (req, res) => {
       `SELECT COUNT(*) as total FROM subjects`
     );
 
-    // 5. Upcoming Exams
+    // 5. Upcoming Exams (simplified - no class_level/faculty if columns don't exist)
     const [upcomingExams] = await db.query(
-      `SELECT id, exam_name, exam_date, class_level, faculty, is_final
+      `SELECT id, exam_name, exam_date, is_final
        FROM exams
        WHERE exam_date >= CURDATE()
        AND academic_year_id = ?
@@ -69,7 +69,7 @@ const getDashboardStats = async (req, res) => {
 
     // 6. Recent Exams
     const [recentExams] = await db.query(
-      `SELECT id, exam_name, exam_date, class_level, faculty, is_final
+      `SELECT id, exam_name, exam_date, is_final
        FROM exams
        WHERE exam_date < CURDATE()
        AND academic_year_id = ?
@@ -177,19 +177,16 @@ const getRecentActivity = async (req, res) => {
       [academic_year_id]
     );
 
-    // Get recently created exams
+    // Get recently created exams (safe query)
     const [recentExamsCreated] = await db.query(
       `SELECT 
-        id, 
-        exam_name, 
-        exam_date,
-        class_level,
-        faculty,
-        is_final,
-        created_at
-       FROM exams
-       WHERE academic_year_id = ?
-       ORDER BY created_at DESC
+        e.id, 
+        e.exam_name, 
+        e.exam_date,
+        e.is_final
+       FROM exams e
+       WHERE e.academic_year_id = ?
+       ORDER BY e.id DESC
        LIMIT 5`,
       [academic_year_id]
     );
@@ -201,18 +198,14 @@ const getRecentActivity = async (req, res) => {
         title: `New Student: ${s.name}`,
         description: `Class ${s.class_level} - ${s.faculty}`,
         timestamp: new Date(s.created_at).toLocaleDateString(),
-        year: s.year_name,
       })),
       ...recentExamsCreated.map((e) => ({
         type: "exam",
         title: `Exam: ${e.exam_name}`,
-        description: `Class ${e.class_level} ${e.is_final ? "(Final)" : ""}`,
-        timestamp: new Date(e.created_at).toLocaleDateString(),
+        description: `Date: ${new Date(e.exam_date).toLocaleDateString()}`,
+        timestamp: new Date(e.exam_date).toLocaleDateString(),
       })),
     ];
-
-    // Sort by timestamp
-    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     res.json(activities.slice(0, 10));
   } catch (error) {
@@ -275,7 +268,7 @@ const quickSearch = async (req, res) => {
   }
 };
 
-// 🆕 @desc    Get Year Comparison Statistics
+// @desc    Get Year Comparison Statistics
 // @route   GET /api/dashboard/year-comparison
 const getYearComparison = async (req, res) => {
   try {
@@ -362,7 +355,7 @@ const getYearComparison = async (req, res) => {
   }
 };
 
-// 🆕 @desc    Get Performance Analytics
+// @desc    Get Performance Analytics (SAFE VERSION)
 // @route   GET /api/dashboard/analytics?academic_year_id=1&class_level=11
 const getPerformanceAnalytics = async (req, res) => {
   try {
@@ -378,6 +371,7 @@ const getPerformanceAnalytics = async (req, res) => {
       }
     }
 
+    // Build where clause for marks queries
     let whereClause = "e.academic_year_id = ?";
     const params = [academic_year_id];
 
@@ -432,26 +426,9 @@ const getPerformanceAnalytics = async (req, res) => {
       params
     );
 
-    // Subject-wise performance
-    const [subjectPerformance] = await db.query(
-      `SELECT 
-        sub.subject_name,
-        AVG(m.grade_point) as avg_gpa,
-        COUNT(DISTINCT m.student_id) as student_count
-       FROM marks m
-       JOIN subjects sub ON m.subject_id = sub.id
-       JOIN exams e ON m.exam_id = e.id
-       JOIN students s ON m.student_id = s.id
-       WHERE ${whereClause}
-       GROUP BY sub.id, sub.subject_name
-       ORDER BY avg_gpa DESC`,
-      params
-    );
-
     res.json({
       gpa_by_exam: gpaByExam,
       grade_distribution: gradeDistribution,
-      subject_performance: subjectPerformance,
       filters: {
         academic_year_id,
         class_level,
@@ -471,6 +448,6 @@ module.exports = {
   getDashboardStats,
   getRecentActivity,
   quickSearch,
-  getYearComparison,      // 🆕 NOW EXPORTED
-  getPerformanceAnalytics, // 🆕 NEW EXPORT
+  getYearComparison,
+  getPerformanceAnalytics,
 };

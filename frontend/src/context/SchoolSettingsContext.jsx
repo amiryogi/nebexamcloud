@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { AuthContext } from "./AuthContext"; // Import AuthContext
+import { AuthContext } from "./AuthContext";
 
 // Create the Context
 export const SchoolSettingsContext = createContext();
@@ -14,15 +14,28 @@ export const SchoolSettingsProvider = ({ children }) => {
   const [schoolSettings, setSchoolSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // Fetch school settings ONLY when user is logged in
+
+  // 🔧 FIX: Single useEffect with proper logic
   useEffect(() => {
     if (user) {
+      // User is logged in - fetch real settings
       fetchSchoolSettings();
     } else {
-      // User not logged in, just use default values
+      // User not logged in - set defaults and stop loading
+      setSchoolSettings({
+        school_name: "School Management System",
+        school_address: "",
+        school_phone: "",
+        school_email: "",
+        school_website: "",
+        principal_name: "Principal",
+        school_logo_path: null,
+        school_seal_path: null,
+        principal_signature_path: null,
+      });
       setLoading(false);
     }
-  }, [user]); // Re-run when user changes
+  }, [user]); // Only re-run when user authentication status changes
 
   // Helper to get auth headers
   const getAuthHeaders = () => {
@@ -75,11 +88,6 @@ export const SchoolSettingsProvider = ({ children }) => {
     }
   };
 
-  // Fetch settings when component mounts
-  useEffect(() => {
-    fetchSchoolSettings();
-  }, []);
-
   // Helper function to get full image URL
   const getImageUrl = (path) => {
     if (!path) return null;
@@ -88,7 +96,9 @@ export const SchoolSettingsProvider = ({ children }) => {
 
   // Refresh function (useful after updating settings)
   const refreshSettings = () => {
-    fetchSchoolSettings();
+    if (user) {
+      fetchSchoolSettings();
+    }
   };
 
   // Context value to be shared

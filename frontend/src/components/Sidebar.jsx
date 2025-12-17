@@ -1,148 +1,258 @@
-import { NavLink } from "react-router-dom";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { SchoolSettingsContext } from "../context/SchoolSettingsContext"; // 🆕 NEW
+import { NavLink, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  ClipboardList,
+  FileText,
+  Calendar,
+  Settings,
+  LogOut,
+  GraduationCap,
+  TrendingUp,
+  Award,
+  UserCheck,
+  School,
+  CalendarCheck,
+  Building2,
+} from "lucide-react";
 
 const Sidebar = () => {
-  const { logout, user } = useContext(AuthContext);
-  
-  // 🆕 Access School Settings
-  const { schoolName, logoUrl, loading: settingsLoading } = useContext(SchoolSettingsContext);
+  const navigate = useNavigate();
 
-  // Helper to style links based on whether they are active or not
-  const getLinkClasses = ({ isActive }) => {
-    const baseClasses =
-      "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors";
-    return isActive
-      ? `${baseClasses} bg-blue-600 text-white shadow-md`
-      : `${baseClasses} text-slate-300 hover:bg-slate-800 hover:text-white`;
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800">
-      {/* 1. Brand Header */}
-      <div className="p-6 border-b border-slate-800">
+    <aside className="fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-2xl z-50">
+      {/* Logo Section */}
+      <div className="p-6 border-b border-blue-700">
         <div className="flex items-center gap-3">
-          {/* 🆕 School Logo or Fallback Icon */}
-          <div className="w-12 h-12 flex-shrink-0 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-            {settingsLoading ? (
-              // Loading state
-              <div className="w-full h-full bg-slate-700 animate-pulse"></div>
-            ) : logoUrl ? (
-              // School Logo
-              <img
-                src={logoUrl}
-                alt={`${schoolName} Logo`}
-                className="w-full h-full object-contain p-1"
-              />
-            ) : (
-              // Fallback Icon
-              <i className="ph ph-graduation-cap text-white text-2xl"></i>
-            )}
+          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+            <School className="text-blue-600" size={24} />
           </div>
-
-          {/* 🆕 Dynamic School Name */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold tracking-wide truncate">
-              {settingsLoading ? (
-                <span className="inline-block w-32 h-5 bg-slate-700 animate-pulse rounded"></span>
-              ) : (
-                schoolName
-              )}
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              NEB Grade 11/12 System
-            </p>
+          <div>
+            <h1 className="text-lg font-bold">NEB School</h1>
+            <p className="text-xs text-blue-300">Management System</p>
           </div>
         </div>
       </div>
 
-      {/* 2. Navigation Menu */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        <NavLink to="/" className={getLinkClasses} end>
-          <i className="ph ph-squares-four text-xl"></i>
-          Dashboard
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        {/* Dashboard */}
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              isActive
+                ? "bg-white text-blue-900 shadow-lg font-semibold"
+                : "text-blue-100 hover:bg-blue-700 hover:text-white"
+            }`
+          }
+        >
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
         </NavLink>
 
-        <NavLink to="/students" className={getLinkClasses}>
-          <i className="ph ph-users text-xl"></i>
-          Students
-        </NavLink>
+        {/* Students Section */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
+            Students
+          </p>
+          
+          <NavLink
+            to="/students"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <Users size={20} />
+            <span>All Students</span>
+          </NavLink>
 
-        <NavLink to="/subjects" className={getLinkClasses}>
-          <i className="ph ph-books text-xl"></i>
-          Subjects
-        </NavLink>
+          <NavLink
+            to="/students/add"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <UserCheck size={20} />
+            <span>Add Student</span>
+          </NavLink>
 
-        <NavLink to="/attendance" className={getLinkClasses}>
-          <i className="ph ph-calendar-check text-xl"></i>
-          Attendance
-        </NavLink>
+          {/* 🆕 NEW - Student Promotion */}
+          <NavLink
+            to="/students/promotion"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <TrendingUp size={20} />
+            <span>Promote Students</span>
+          </NavLink>
 
-        <NavLink to="/exams" className={getLinkClasses}>
-          <i className="ph ph-exam text-xl"></i>
-          Exams & Marks
-        </NavLink>
+          {/* 🆕 NEW - Graduated Students */}
+          <NavLink
+            to="/students/graduated"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <GraduationCap size={20} />
+            <span>Alumni</span>
+          </NavLink>
+        </div>
+
+        {/* Academic Section */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
+            Academic
+          </p>
+
+          <NavLink
+            to="/subjects"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <BookOpen size={20} />
+            <span>Subjects</span>
+          </NavLink>
+
+          <NavLink
+            to="/exams"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <ClipboardList size={20} />
+            <span>Exams</span>
+          </NavLink>
+
+          <NavLink
+            to="/attendance"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <CalendarCheck size={20} />
+            <span>Attendance</span>
+          </NavLink>
+        </div>
 
         {/* Reports Section */}
-        <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-          Reports
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
+            Reports
+          </p>
+
+          <NavLink
+            to="/reports/gradesheet"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <FileText size={20} />
+            <span>Gradesheet</span>
+          </NavLink>
+
+          <NavLink
+            to="/reports/certificate"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <Award size={20} />
+            <span>Character Certificate</span>
+          </NavLink>
         </div>
-        
-
-        <NavLink to="/reports/gradesheet" className={getLinkClasses}>
-          <i className="ph ph-file-text text-xl"></i>
-          Gradesheets
-        </NavLink>
-
-        <NavLink to="/reports/certificate" className={getLinkClasses}>
-          <i className="ph ph-certificate text-xl"></i>
-          Certificates
-        </NavLink>
 
         {/* Settings Section */}
-        <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-          Settings
-        </div>
-        
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
+            Settings
+          </p>
 
-        <NavLink to="/settings/school" className={getLinkClasses}>
-          <i className="ph ph-gear text-xl"></i>
-          School Settings
-        </NavLink>
-         <NavLink
-    to="/settings/academic-years"
-    className={({ isActive }) =>
-      `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-        isActive
-          ? "bg-blue-600 text-white"
-          : "text-gray-700 hover:bg-gray-100"
-      }`
-    }
-  >
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-    <span>Academic Years</span>
-  </NavLink>
+          {/* 🆕 NEW - Academic Years */}
+          <NavLink
+            to="/settings/academic-years"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <Calendar size={20} />
+            <span>Academic Years</span>
+          </NavLink>
+
+          <NavLink
+            to="/settings/school"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? "bg-white text-blue-900 shadow-lg font-semibold"
+                  : "text-blue-100 hover:bg-blue-700 hover:text-white"
+              }`
+            }
+          >
+            <Building2 size={20} />
+            <span>School Settings</span>
+          </NavLink>
+        </div>
       </nav>
 
-      {/* 3. User Footer */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold text-lg">
-            {user?.username?.charAt(0).toUpperCase()}
-          </div>
-          <div className="overflow-hidden">
-            <p className="font-medium text-sm truncate">{user?.username}</p>
-            <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
-          </div>
-        </div>
+      {/* Logout Button */}
+      <div className="p-4 border-t border-blue-700">
         <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-600 hover:text-white py-2 rounded-lg text-sm text-slate-300 transition-colors"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-semibold"
         >
-          <i className="ph ph-sign-out"></i> Logout
+          <LogOut size={20} />
+          <span>Logout</span>
         </button>
       </div>
     </aside>

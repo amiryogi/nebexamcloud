@@ -20,7 +20,6 @@ const getCurrentAcademicYear = () => {
   const currentMonth = now.getMonth() + 1; // 0-indexed
 
   // If it's April or later, use current year; otherwise use previous year
-  // Adjust this logic based on your school's academic calendar
   return currentMonth >= 4
     ? currentYear.toString()
     : (currentYear - 1).toString();
@@ -28,21 +27,29 @@ const getCurrentAcademicYear = () => {
 
 // Provider Component
 export const AcademicYearProvider = ({ children }) => {
-  // Check localStorage first, fallback to current year
-  const storedYear = localStorage.getItem("selectedAcademicYear");
-  const [selectedYear, setSelectedYear] = useState(
-    storedYear || getCurrentAcademicYear()
-  );
-
+  // 🔧 FIX: Initialize state without reading localStorage immediately
+  const [selectedYear, setSelectedYear] = useState("");
   const [availableYears, setAvailableYears] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
-  // Fetch available academic years on mount
+  // 🔧 FIX: Single useEffect that runs once on mount
   useEffect(() => {
-    fetchAvailableYears();
-  }, []);
+    if (!initialized) {
+      initializeYear();
+      setInitialized(true);
+    }
+  }, []); // Empty array - runs once
 
-  const fetchAvailableYears = async () => {
+  const initializeYear = () => {
+    const storedYear = localStorage.getItem("selectedAcademicYear");
+    const yearToUse = storedYear || getCurrentAcademicYear();
+    
+    setSelectedYear(yearToUse);
+    fetchAvailableYears(yearToUse);
+  };
+
+  const fetchAvailableYears = async (currentSelectedYear) => {
     try {
       setLoading(true);
       const response = await examAPI.getAcademicYears();
@@ -50,19 +57,25 @@ export const AcademicYearProvider = ({ children }) => {
 
       // If no years exist, add current year
       if (years.length === 0) {
-        years.push(getCurrentAcademicYear());
-      }
-
-      setAvailableYears(years);
-
-      // If stored year doesn't exist in available years, reset to current
-      if (storedYear && !years.includes(storedYear)) {
-        changeYear(getCurrentAcademicYear());
+        const defaultYear = getCurrentAcademicYear();
+        setAvailableYears([defaultYear]);
+        setSelectedYear(defaultYear);
+      } else {
+        setAvailableYears(years);
+        
+        // Validate stored year still exists
+        const yearExists = years.some(y => y.id?.toString() === currentSelectedYear || y === currentSelectedYear);
+        if (!yearExists) {
+          const defaultYear = getCurrentAcademicYear();
+          changeYear(defaultYear);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch academic years:", error);
       // Fallback to current year
-      setAvailableYears([getCurrentAcademicYear()]);
+      const defaultYear = getCurrentAcademicYear();
+      setAvailableYears([defaultYear]);
+      setSelectedYear(defaultYear);
     } finally {
       setLoading(false);
     }
@@ -94,7 +107,7 @@ export const AcademicYearProvider = ({ children }) => {
     changeYear,
     resetToCurrentYear,
     addYear,
-    refreshYears: fetchAvailableYears,
+    refreshYears: () => fetchAvailableYears(selectedYear),
     currentYear: getCurrentAcademicYear(),
   };
 

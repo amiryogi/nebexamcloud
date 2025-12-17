@@ -9,7 +9,7 @@ const seedData = async () => {
 
     console.log("👤 Seeding Users...");
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash("amir", salt); // Default Password
+    const hashedPassword = await bcrypt.hash("bivan", salt); // Default Password
 
     await connection.query(
       `INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`,

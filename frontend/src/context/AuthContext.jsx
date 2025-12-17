@@ -1,68 +1,92 @@
-import { createContext, useState, useEffect } from "react";
-// We import the 'api' instance we created in the previous step
-// This ensures our login request goes to the right URL
-import api from "../services/api";
+import React, { createContext, useState, useEffect } from "react";
+import { authAPI } from "../services/api";
 
-// 1. Create the Context object
-// This is like creating a "Radio Frequency" that components can tune into
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // State to hold the current logged-in user
   const [user, setUser] = useState(null);
-
-  // State to track if we are still checking LocalStorage (to prevent screen flashing)
   const [loading, setLoading] = useState(true);
 
-  // 2. Check for existing login on Page Load
+  // Check for existing token on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      // If we found data in storage, put it in State
-      setUser(JSON.parse(storedUser));
-    }
-    // We are done checking
-    setLoading(false);
+    checkAuth();
   }, []);
 
-  // 3. Login Function
-  const login = async (username, password) => {
+  const checkAuth = async () => {
     try {
-      // Use our centralized API to make the POST request
-      const { data } = await api.post("/auth/login", {
-        username,
-        password,
-      });
+      const token = localStorage.getItem("token");
 
-      // If successful:
-      // a. Save to Browser Storage (so it survives refresh)
-      localStorage.setItem("user", JSON.stringify(data));
-      // b. Update State (so the App knows we are logged in)
-      setUser(data);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-      return { success: true };
+      // Verify token is still valid
+      const response = await authAPI.getMe();
+      setUser(response.data);
     } catch (error) {
-      console.error("Login failed", error);
-      // Return a helpful error message to display in the UI
-      return {
-        success: false,
-        message: error.response?.data?.message || "Login failed",
-      };
+      console.error("Auth check failed:", error);
+      // Token is invalid, clear it
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 4. Logout Function
+  const login = async (credentials) => {
+    try {
+      const response = await authAPI.login(credentials);
+      const { token, ...userData } = response.data;
+
+      // Store token and user data
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      setUser(userData);
+
+      return response.data;
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await authAPI.register(userData);
+      const { token, ...user } = response.data;
+
+      // Store token and user data
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setUser(user);
+
+      return response.data;
+    } catch (error) {
+      console.error("Registration failed:", error);
+      throw error;
+    }
+  };
+
   const logout = () => {
-    // Clear everything
+    localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
   };
 
-  // 5. Provide these values to the rest of the app
-  return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {/* 'children' represents the whole App component inside this wrapper */}
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    isAuthenticated: !!user,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthContext;

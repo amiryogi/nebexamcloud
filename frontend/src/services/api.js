@@ -11,13 +11,30 @@ const api = axios.create({
   },
 });
 
-// Add token to requests if available
+// 🔧 FIX: Correctly extract token from user object
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // Try to get token from localStorage
+    let token = localStorage.getItem("token");
+    
+    // If not found directly, check inside user object
+    if (!token) {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const userObj = JSON.parse(userStr);
+          token = userObj.token || userObj.accessToken;
+        } catch (e) {
+          console.error("Failed to parse user from localStorage");
+        }
+      }
+    }
+    
+    // Only add Authorization header if token exists
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
@@ -30,8 +47,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
+      // Token expired or invalid - clear ALL auth data
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -101,7 +119,7 @@ export const examAPI = {
 
   // Get available academic years
   getAcademicYears: () => {
-    return api.get("/exams/years/list");
+    return api.get("/academic-years");
   },
 
   // Get exam statistics for a year
