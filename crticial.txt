@@ -1,0 +1,26 @@
+-- Check if table exists
+SHOW TABLES LIKE 'school_settings';
+
+-- Create table if missing
+CREATE TABLE IF NOT EXISTS school_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  school_name VARCHAR(255) NOT NULL,
+  school_address TEXT NOT NULL,
+  school_phone VARCHAR(50),
+  school_email VARCHAR(255),
+  school_website VARCHAR(255),
+  principal_name VARCHAR(255) NOT NULL,
+  school_logo_path VARCHAR(500),
+  school_seal_path VARCHAR(500),
+  principal_signature_path VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insert initial row (THIS IS CRITICAL!)
+INSERT INTO school_settings (id, school_name, school_address, principal_name)
+VALUES (1, 'My School', 'School Address, City', 'Principal Name')
+ON DUPLICATE KEY UPDATE id=1;
+
+-- Verify the row exists
+SELECT * FROM school_settings WHERE id = 1;

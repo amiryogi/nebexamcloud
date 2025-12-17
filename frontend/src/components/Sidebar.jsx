@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileText,
   Calendar,
-  Settings,
   LogOut,
   GraduationCap,
   TrendingUp,
@@ -27,9 +26,9 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-2xl z-50">
-      {/* Logo Section */}
-      <div className="p-6 border-b border-blue-700">
+    <aside className="fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-2xl z-50 flex flex-col">
+      {/* Logo Section - Fixed at top */}
+      <div className="flex-shrink-0 p-6 border-b border-blue-700">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
             <School className="text-blue-600" size={24} />
@@ -41,8 +40,8 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+      {/* Navigation - Scrollable area */}
+      <nav className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-blue-700 scrollbar-track-blue-900">
         {/* Dashboard */}
         <NavLink
           to="/"
@@ -64,7 +63,7 @@ const Sidebar = () => {
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
             Students
           </p>
-          
+
           <NavLink
             to="/students"
             className={({ isActive }) =>
@@ -93,7 +92,6 @@ const Sidebar = () => {
             <span>Add Student</span>
           </NavLink>
 
-          {/* 🆕 NEW - Student Promotion */}
           <NavLink
             to="/students/promotion"
             className={({ isActive }) =>
@@ -108,7 +106,6 @@ const Sidebar = () => {
             <span>Promote Students</span>
           </NavLink>
 
-          {/* 🆕 NEW - Graduated Students */}
           <NavLink
             to="/students/graduated"
             className={({ isActive }) =>
@@ -209,12 +206,11 @@ const Sidebar = () => {
         </div>
 
         {/* Settings Section */}
-        <div className="pt-4">
+        <div className="pt-4 pb-4">
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-2 px-4">
             Settings
           </p>
 
-          {/* 🆕 NEW - Academic Years */}
           <NavLink
             to="/settings/academic-years"
             className={({ isActive }) =>
@@ -245,8 +241,8 @@ const Sidebar = () => {
         </div>
       </nav>
 
-      {/* Logout Button */}
-      <div className="p-4 border-t border-blue-700">
+      {/* Logout Button - Fixed at bottom */}
+      <div className="flex-shrink-0 p-4 border-t border-blue-700">
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-semibold"
