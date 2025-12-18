@@ -1,0 +1,24 @@
+1,Compulsory English,0031,0032,75,25,3,1,4,11,\N,1
+2,Compulsory Nepali,0011,0012,75,25,2.25,0.75,3,11,\N,1
+3,Social Studies & Life Skills,0051,0052,75,25,3.75,1.25,5,11,\N,0
+4,Physics,1011,1012,75,25,3.75,1.25,5,11,Science,0
+5,Chemistry,3011,3012,75,25,3.75,1.25,5,11,Science,0
+6,Biology,1031,1032,75,25,3.75,1.25,5,11,Science,0
+7,Mathematics,0071,0072,75,25,3.75,1.25,5,11,Science,0
+8,Computer Science,4271,4272,50,50,2.5,2.5,5,11,Science,0
+9,Accounting,1031,1032,75,25,3.75,1.25,5,11,Management,0
+10,Economics,3031,3032,75,25,3.75,1.25,5,11,Management,0
+11,Business Studies,2151,2152,75,25,3.75,1.25,5,11,Management,0
+12,Hotel Management,4391,4392,50,50,2.5,2.5,5,11,Management,0
+13,Compulsory English,0041,0042,75,25,3,1,4,12,\N,1
+14,Compulsory Nepali,0021,0022,75,25,2.25,0.75,4,12,\N,1
+15,Social Studies & Life Skills,0061,0062,75,25,3,1,4,12,\N,1
+16,Physics,1021,1022,75,25,3.75,1.25,4,12,Science,0
+17,Chemistry,3012,3013,75,25,3.75,1.25,4,12,Science,0
+18,Biology,1041,1042,75,25,3.75,1.25,4,12,Science,0
+19,Mathematics,0081,0082,75,25,3.75,1.25,5,12,Science,0
+20,Computer Science,4281,4282,50,50,2.5,2.5,5,12,Science,0
+21,Accounting,1041,1042,75,25,3.75,1.25,5,12,Management,0
+22,Economics,3041,3042,75,25,3.75,1.25,5,12,Management,0
+23,Business Studies,2261,2262,75,25,3.75,1.25,5,12,Management,0
+24,Hotel Management,4401,4402,50,50,2.5,2.5,5,12,Management,0

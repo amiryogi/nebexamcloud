@@ -16,7 +16,7 @@ api.interceptors.request.use(
   (config) => {
     // Try to get token from localStorage
     let token = localStorage.getItem("token");
-    
+
     // If not found directly, check inside user object
     if (!token) {
       const userStr = localStorage.getItem("user");
@@ -29,12 +29,12 @@ api.interceptors.request.use(
         }
       }
     }
-    
+
     // Only add Authorization header if token exists
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {

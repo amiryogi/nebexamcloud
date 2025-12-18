@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAcademicYear } from "../context/AcademicYearContext";
+import { useSchoolSettings } from "../context/SchoolSettingsContext";
 import { dashboardAPI } from "../services/api";
 import AcademicYearSelector from "../components/AcademicYearSelector";
 import toast from "react-hot-toast";
 
 const Dashboard = () => {
   const { selectedYear } = useAcademicYear();
+  const {
+    schoolSettings,
+    schoolName,
+    logoUrl,
+    loading: settingsLoading,
+  } = useSchoolSettings();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +39,7 @@ const Dashboard = () => {
   };
 
   // Loading State
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -66,15 +73,36 @@ const Dashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Welcome to NEB Student Management System
-          </p>
+      {/* Header Section with School Info */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt={schoolName}
+                className="w-16 h-16 object-contain"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">{schoolName}</h1>
+              <p className="text-gray-600 mt-1">
+                {schoolSettings?.school_address || "Dashboard Overview"}
+              </p>
+              {schoolSettings?.school_phone && (
+                <p className="text-sm text-gray-500 mt-1">
+                  📞 {schoolSettings.school_phone}
+                  {schoolSettings.school_email &&
+                    ` | ✉️ ${schoolSettings.school_email}`}
+                </p>
+              )}
+            </div>
+          </div>
+          <AcademicYearSelector />
         </div>
-        <AcademicYearSelector />
       </div>
 
       {/* Statistics Cards */}

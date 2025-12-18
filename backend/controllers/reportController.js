@@ -50,14 +50,7 @@ const getStudentGradesheet = async (req, res) => {
 
     const exam = exams[0];
 
-    // 3. Verify student and exam are in same academic year (optional validation)
-    if (student.academic_year_id !== exam.academic_year_id) {
-      console.warn(
-        `⚠️ Warning: Student (year ${student.academic_year_id}) and Exam (year ${exam.academic_year_id}) are in different academic years`
-      );
-    }
-
-    // 4. Fetch Marks for SPECIFIC EXAM with Subject Details
+    // 3. Fetch Marks for SPECIFIC EXAM with Subject Details
     const [results] = await db.query(
       `SELECT 
           s.id as subject_id, 
@@ -80,9 +73,8 @@ const getStudentGradesheet = async (req, res) => {
       [studentId, examId, studentId]
     );
 
-    // 5. Process Each Subject with Detailed Grades
+    // 4. Process Each Subject with Detailed Grades
     const formattedSubjects = results.map((row) => {
-      // Convert strings to numbers before calculation
       const theoryObtained = parseFloat(row.theory_obtained) || 0;
       const theoryFullMarks = parseFloat(row.theory_full_marks) || 0;
       const practicalObtained = parseFloat(row.practical_obtained) || 0;
@@ -104,29 +96,23 @@ const getStudentGradesheet = async (req, res) => {
         subject_name: row.subject_name,
         theory_code: row.theory_code,
         practical_code: row.practical_code,
-
-        // Theory Details
         theory_full_marks: theoryFullMarks,
         theory_obtained: theoryObtained,
         theory_grade_point: gradeDetails.theory.gradePoint,
         theory_grade: gradeDetails.theory.grade,
         theory_credit_hour: theoryCreditHour,
-
-        // Practical Details
         practical_full_marks: practicalFullMarks,
         practical_obtained: practicalObtained,
         practical_grade_point: gradeDetails.practical.gradePoint,
         practical_grade: gradeDetails.practical.grade,
         practical_credit_hour: practicalCreditHour,
-
-        // Final Combined
         total_credit_hour: gradeDetails.final.totalCreditHour,
         final_grade_point: gradeDetails.final.gradePoint,
         final_grade: gradeDetails.final.grade,
       };
     });
 
-    // 6. Calculate Overall GPA
+    // 5. Calculate Overall GPA
     const gpa = calculateOverallGPA(
       formattedSubjects.map((s) => ({
         total_credit_hour: s.total_credit_hour,
@@ -159,6 +145,13 @@ const getClassGradesheets = async (req, res) => {
     const { class_level } = req.params;
     const { faculty, academic_year_id, exam_id } = req.query;
 
+    console.log("📥 Batch Request:", {
+      class_level,
+      faculty,
+      academic_year_id,
+      exam_id,
+    });
+
     if (!exam_id) {
       return res.status(400).json({ message: "exam_id is required" });
     }
@@ -167,7 +160,8 @@ const getClassGradesheets = async (req, res) => {
     const [exams] = await db.query(
       `SELECT 
         e.*,
-        ay.year_name as exam_year
+        ay.year_name as exam_year,
+        ay.id as exam_year_id
        FROM exams e
        LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
        WHERE e.id = ?`,
@@ -179,48 +173,68 @@ const getClassGradesheets = async (req, res) => {
     }
 
     const exam = exams[0];
+    console.log("📝 Exam found:", {
+      exam_id: exam.id,
+      exam_year_id: exam.exam_year_id,
+      exam_name: exam.exam_name,
+    });
 
-    // 1. Build Query for Students
+    // 🔧 FIX: Determine which year to use
+    // If academic_year_id is provided, use it; otherwise use exam's year
+    const yearToFilter = academic_year_id || exam.exam_year_id;
+
+    console.log("🎯 Filtering by year ID:", yearToFilter);
+
+    // Build Query for Students
     let sql = `
       SELECT 
         s.id,
+        s.academic_year_id,
         ay.year_name,
         ay.id as year_id
       FROM students s
       LEFT JOIN academic_years ay ON s.academic_year_id = ay.id
       WHERE s.class_level = ?
+      AND s.status = 'active'
     `;
     const params = [class_level];
+
+    // Add year filter
+    if (yearToFilter) {
+      sql += ` AND s.academic_year_id = ?`;
+      params.push(yearToFilter);
+    }
 
     if (faculty && faculty !== "All") {
       sql += ` AND s.faculty = ?`;
       params.push(faculty);
     }
 
-    // Filter by academic year if provided, otherwise use exam's year
-    if (academic_year_id) {
-      sql += ` AND s.academic_year_id = ?`;
-      params.push(academic_year_id);
-    } else if (exam.academic_year_id) {
-      sql += ` AND s.academic_year_id = ?`;
-      params.push(exam.academic_year_id);
-    }
-
     sql += ` ORDER BY s.registration_no ASC`;
 
+    console.log("🔍 SQL Query:", sql);
+    console.log("🔍 Params:", params);
+
     const [students] = await db.query(sql, params);
+
+    console.log(`👥 Found ${students.length} students`);
 
     if (students.length === 0) {
       return res.json({
         exam,
-        academic_year: academic_year_id || exam.academic_year_id,
+        academic_year: {
+          id: yearToFilter,
+          name: exam.exam_year,
+        },
         reports: [],
+        total_students: 0,
+        message: "No students found matching the criteria",
       });
     }
 
     const reports = [];
 
-    // 2. Generate Report for Each Student
+    // Generate Report for Each Student
     for (const st of students) {
       const [studentRows] = await db.query(
         `SELECT 
@@ -254,8 +268,11 @@ const getClassGradesheets = async (req, res) => {
         [st.id, exam_id, st.id]
       );
 
+      console.log(
+        `📊 Student ${student.first_name}: ${results.length} subjects found`
+      );
+
       const subjects = results.map((row) => {
-        // Convert strings to numbers
         const theoryObtained = parseFloat(row.theory_obtained) || 0;
         const theoryFullMarks = parseFloat(row.theory_full_marks) || 0;
         const practicalObtained = parseFloat(row.practical_obtained) || 0;
@@ -302,10 +319,12 @@ const getClassGradesheets = async (req, res) => {
       reports.push({ student, subjects, gpa });
     }
 
+    console.log(`✅ Generated ${reports.length} reports`);
+
     res.json({
       exam,
       academic_year: {
-        id: academic_year_id || exam.academic_year_id,
+        id: yearToFilter,
         name: students[0]?.year_name || exam.exam_year,
       },
       reports,
@@ -323,7 +342,6 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
   try {
     const studentId = req.params.id;
 
-    // Get student details
     const [students] = await db.query(
       `SELECT s.*, ay.year_name
        FROM students s
@@ -338,7 +356,6 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
 
     const student = students[0];
 
-    // Get all exams the student has appeared in
     const [exams] = await db.query(
       `SELECT DISTINCT 
         e.id,
@@ -354,7 +371,6 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
       [studentId]
     );
 
-    // Calculate GPA for each exam
     const performance = [];
 
     for (const exam of exams) {
