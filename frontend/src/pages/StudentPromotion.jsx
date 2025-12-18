@@ -1,480 +1,534 @@
 import { useState, useEffect } from "react";
 import {
-  ArrowRight,
-  Users,
-  CheckSquare,
-  Square,
-  AlertCircle,
-  Loader2,
   TrendingUp,
-  History,
-  X,
+  GraduationCap,
+  Users,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  ArrowRight,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
+import axios from "axios";
 import toast from "react-hot-toast";
-import {
-  getAllAcademicYears,
-  getStudentsByYear,
-  promoteStudents,
-  getPromotionHistory,
-} from "../services/academicYearService";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const StudentPromotion = () => {
+  const [currentYear, setCurrentYear] = useState("");
+  const [nextYear, setNextYear] = useState("");
   const [academicYears, setAcademicYears] = useState([]);
-  const [fromYearId, setFromYearId] = useState("");
-  const [toYearId, setToYearId] = useState("");
-  const [students, setStudents] = useState([]);
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [promoteClass, setPromoteClass] = useState(true);
+  const [class11Students, setClass11Students] = useState([]);
+  const [class12Students, setClass12Students] = useState([]);
+  const [selectedClass11, setSelectedClass11] = useState([]);
+  const [selectedClass12, setSelectedClass12] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [promotionHistory, setPromotionHistory] = useState([]);
+  const [summary, setSummary] = useState(null);
 
-  const [filters, setFilters] = useState({
-    class_level: "",
-    faculty: "",
-  });
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   useEffect(() => {
     fetchAcademicYears();
   }, []);
 
   useEffect(() => {
-    if (fromYearId) {
+    if (currentYear && nextYear) {
+      fetchPromotionSummary();
       fetchStudents();
-    } else {
-      setStudents([]);
-      setSelectedStudents([]);
     }
-  }, [fromYearId, filters]);
+  }, [currentYear, nextYear]);
 
   const fetchAcademicYears = async () => {
     try {
-      const data = await getAllAcademicYears();
-      setAcademicYears(data);
+      const response = await axios.get(`${API_URL}/api/academic-years`, {
+        headers: getAuthHeaders(),
+      });
 
-      // Auto-select current year as "from"
-      const currentYear = data.find((y) => y.is_current);
-      if (currentYear) {
-        setFromYearId(currentYear.id.toString());
+      // 🔧 FIX: Handle different response structures
+      let yearsData = [];
+      
+      if (Array.isArray(response.data)) {
+        yearsData = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        yearsData = response.data.data;
+      } else if (response.data.success && Array.isArray(response.data.data)) {
+        yearsData = response.data.data;
+      } else {
+        console.error("Unexpected API response structure:", response.data);
+        yearsData = [];
+      }
+
+      setAcademicYears(yearsData);
+
+      // Auto-select current year
+      if (yearsData.length > 0) {
+        const current = yearsData.find((y) => y.is_current);
+        if (current) {
+          setCurrentYear(current.id.toString());
+          
+          // Auto-select next year (if available)
+          const currentIndex = yearsData.findIndex((y) => y.id === current.id);
+          if (currentIndex >= 0 && currentIndex < yearsData.length - 1) {
+            setNextYear(yearsData[currentIndex + 1].id.toString());
+          }
+        }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching academic years:", error);
       toast.error("Failed to load academic years");
+      setAcademicYears([]);
+    }
+  };
+
+  const fetchPromotionSummary = async () => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/students/promote/summary`,
+        {
+          params: {
+            current_year_id: currentYear,
+            next_year_id: nextYear,
+          },
+          headers: getAuthHeaders(),
+        }
+      );
+
+      setSummary(response.data);
+    } catch (error) {
+      console.error("Error fetching summary:", error);
+      toast.error("Failed to load promotion summary");
     }
   };
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const data = await getStudentsByYear(fromYearId, filters);
-      setStudents(data);
-      setSelectedStudents([]);
+      // Fetch Class 11 students
+      const class11Response = await axios.get(`${API_URL}/api/students`, {
+        params: {
+          class_level: "11",
+          academic_year_id: currentYear,
+          status: "active",
+        },
+        headers: getAuthHeaders(),
+      });
+
+      setClass11Students(Array.isArray(class11Response.data) ? class11Response.data : []);
+
+      // Fetch Class 12 students
+      const class12Response = await axios.get(`${API_URL}/api/students`, {
+        params: {
+          class_level: "12",
+          academic_year_id: currentYear,
+          status: "active",
+        },
+        headers: getAuthHeaders(),
+      });
+
+      setClass12Students(Array.isArray(class12Response.data) ? class12Response.data : []);
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching students:", error);
       toast.error("Failed to load students");
+      setClass11Students([]);
+      setClass12Students([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchHistory = async () => {
+  const handlePromoteToClass12 = async () => {
+    if (selectedClass11.length === 0) {
+      toast.error("Please select students to promote");
+      return;
+    }
+
+    if (!window.confirm(
+      `Promote ${selectedClass11.length} students from Class 11 to Class 12?`
+    )) {
+      return;
+    }
+
+    setLoading(true);
     try {
-      const data = await getPromotionHistory();
-      setPromotionHistory(data);
-      setShowHistory(true);
+      const response = await axios.post(
+        `${API_URL}/api/students/promote/to-class-12`,
+        {
+          student_ids: selectedClass11,
+          new_academic_year_id: parseInt(nextYear),
+        },
+        { headers: getAuthHeaders() }
+      );
+
+      toast.success(response.data.message);
+      setSelectedClass11([]);
+      fetchStudents();
+      fetchPromotionSummary();
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to load promotion history");
+      console.error("Promotion error:", error);
+      toast.error(error.response?.data?.message || "Failed to promote students");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSelectAll = () => {
-    if (selectedStudents.length === students.length) {
-      setSelectedStudents([]);
-    } else {
-      setSelectedStudents(students.map((s) => s.id));
+  const handleGraduate = async () => {
+    if (selectedClass12.length === 0) {
+      toast.error("Please select students to graduate");
+      return;
+    }
+
+    if (!window.confirm(
+      `Graduate ${selectedClass12.length} students from Class 12?`
+    )) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/students/promote/graduate`,
+        {
+          student_ids: selectedClass12,
+          graduation_date: new Date().toISOString().split("T")[0],
+        },
+        { headers: getAuthHeaders() }
+      );
+
+      toast.success(response.data.message);
+      setSelectedClass12([]);
+      fetchStudents();
+      fetchPromotionSummary();
+    } catch (error) {
+      console.error("Graduation error:", error);
+      toast.error(error.response?.data?.message || "Failed to graduate students");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStudentToggle = (studentId) => {
-    setSelectedStudents((prev) =>
+  const toggleClass11Selection = (studentId) => {
+    setSelectedClass11((prev) =>
       prev.includes(studentId)
         ? prev.filter((id) => id !== studentId)
         : [...prev, studentId]
     );
   };
 
-  const handlePromote = async () => {
-    if (!fromYearId || !toYearId) {
-      toast.error("Please select both source and destination years");
-      return;
-    }
+  const toggleClass12Selection = (studentId) => {
+    setSelectedClass12((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
 
-    if (fromYearId === toYearId) {
-      toast.error("Source and destination years cannot be the same");
-      return;
-    }
-
-    if (selectedStudents.length === 0) {
-      toast.error("Please select at least one student to promote");
-      return;
-    }
-
-    const confirmMsg = `Are you sure you want to promote ${
-      selectedStudents.length
-    } student(s) to the next academic year? ${
-      promoteClass ? "Their class level will be increased (11→12)." : ""
-    }`;
-
-    if (!window.confirm(confirmMsg)) return;
-
-    setLoading(true);
-    try {
-      await promoteStudents({
-        from_year_id: fromYearId,
-        to_year_id: toYearId,
-        student_ids: selectedStudents,
-        promote_class: promoteClass,
-      });
-
-      toast.success(
-        `Successfully promoted ${selectedStudents.length} students!`
-      );
-
-      // Refresh student list
-      fetchStudents();
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error.response?.data?.message || "Failed to promote students"
-      );
-    } finally {
-      setLoading(false);
+  const selectAllClass11 = () => {
+    if (selectedClass11.length === class11Students.length) {
+      setSelectedClass11([]);
+    } else {
+      setSelectedClass11(class11Students.map((s) => s.id));
     }
   };
 
-  const fromYear = academicYears.find((y) => y.id.toString() === fromYearId);
-  const toYear = academicYears.find((y) => y.id.toString() === toYearId);
+  const selectAllClass12 = () => {
+    if (selectedClass12.length === class12Students.length) {
+      setSelectedClass12([]);
+    } else {
+      setSelectedClass12(class12Students.map((s) => s.id));
+    }
+  };
+
+  // 🔧 FIX: Safe array access with fallback
+  const currentYearName = academicYears.find((y) => y.id.toString() === currentYear)?.year_name || "N/A";
+  const nextYearName = academicYears.find((y) => y.id.toString() === nextYear)?.year_name || "N/A";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <TrendingUp className="text-green-600" />
-            Student Promotion
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Promote students to the next academic year
-          </p>
-        </div>
-        <button
-          onClick={fetchHistory}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
-        >
-          <History size={18} />
-          View History
-        </button>
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-xl flex items-start gap-3">
-        <AlertCircle
-          className="text-yellow-600 flex-shrink-0 mt-0.5"
-          size={20}
-        />
-        <div className="text-sm text-yellow-800">
-          <p className="font-semibold mb-1">Important Notes:</p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Promotion moves students from one academic year to another</li>
-            <li>Enable "Promote Class Level" to advance Grade 11 → Grade 12</li>
-            <li>
-              Grade 12 students should be marked as alumni instead of promoted
-            </li>
-            <li>This action can be undone from the history page</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Selection Controls */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Select Years</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-          {/* From Year */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              From Year (Source)
-            </label>
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              value={fromYearId}
-              onChange={(e) => setFromYearId(e.target.value)}
-            >
-              <option value="">-- Select Year --</option>
-              {academicYears
-                .filter((y) => y.status !== "closed")
-                .map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.year_name} {year.is_current ? "(Current)" : ""}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Arrow */}
-          <div className="flex justify-center items-end pb-2">
-            <ArrowRight className="text-green-600" size={32} />
-          </div>
-
-          {/* To Year */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              To Year (Destination)
-            </label>
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              value={toYearId}
-              onChange={(e) => setToYearId(e.target.value)}
-            >
-              <option value="">-- Select Year --</option>
-              {academicYears
-                .filter(
-                  (y) => y.status !== "closed" && y.id.toString() !== fromYearId
-                )
-                .map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.year_name} {year.is_current ? "(Current)" : ""}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Promote Class Option */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={promoteClass}
-              onChange={(e) => setPromoteClass(e.target.checked)}
-              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-            />
-            <div>
-              <span className="font-semibold text-gray-800">
-                Promote Class Level (11 → 12)
-              </span>
-              <p className="text-xs text-gray-600 mt-0.5">
-                Check this to automatically advance students from Grade 11 to
-                Grade 12
-              </p>
-            </div>
-          </label>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+          <TrendingUp className="text-blue-600" size={28} />
+          Student Promotion System
+        </h1>
+        <p className="text-gray-600 mt-2">
+          Promote Class 11 students to Class 12 or graduate Class 12 students
+        </p>
       </div>
 
-      {/* Filters */}
-      {fromYearId && (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2 text-gray-600">
-            <Users size={18} />
-            <span className="text-sm font-medium">Filter Students:</span>
-          </div>
+      {/* Year Selection */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Calendar className="text-blue-600" size={20} />
+          Select Academic Years
+        </h3>
 
-          <select
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-            value={filters.class_level}
-            onChange={(e) =>
-              setFilters({ ...filters, class_level: e.target.value })
-            }
-          >
-            <option value="">All Classes</option>
-            <option value="11">Grade 11</option>
-            <option value="12">Grade 12</option>
-          </select>
-
-          <select
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-            value={filters.faculty}
-            onChange={(e) =>
-              setFilters({ ...filters, faculty: e.target.value })
-            }
-          >
-            <option value="">All Faculties</option>
-            <option value="Science">Science</option>
-            <option value="Management">Management</option>
-            <option value="Humanities">Humanities</option>
-          </select>
-        </div>
-      )}
-
-      {/* Student List */}
-      {fromYearId && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <h3 className="font-bold text-gray-800">
-                Students in {fromYear?.year_name}
-              </h3>
-              <span className="text-sm text-gray-500">
-                {selectedStudents.length} of {students.length} selected
-              </span>
-            </div>
-            {students.length > 0 && (
-              <button
-                onClick={handleSelectAll}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
-              >
-                {selectedStudents.length === students.length ? (
-                  <>
-                    <CheckSquare size={16} /> Deselect All
-                  </>
-                ) : (
-                  <>
-                    <Square size={16} /> Select All
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2">
-              <Loader2 className="animate-spin" size={20} />
-              Loading students...
-            </div>
-          ) : students.length === 0 ? (
-            <div className="p-12 text-center text-gray-400">
-              <Users className="w-16 h-16 mx-auto mb-4 opacity-20" />
-              <p className="text-lg font-medium">No students found</p>
-              <p className="text-sm mt-1">
-                Try changing the filters or select a different year
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-              {students.map((student) => (
-                <label
-                  key={student.id}
-                  className="flex items-center gap-4 p-4 hover:bg-blue-50 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedStudents.includes(student.id)}
-                    onChange={() => handleStudentToggle(student.id)}
-                    className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">
-                      {student.first_name} {student.last_name}
-                    </p>
-                    <div className="flex gap-4 text-xs text-gray-500 mt-1">
-                      <span>Reg: {student.registration_no || "N/A"}</span>
-                      <span>Class {student.class_level}</span>
-                      <span>{student.faculty}</span>
-                    </div>
-                  </div>
-                  {promoteClass && student.class_level === "11" && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                      Will become Grade 12
-                    </span>
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Promotion Button */}
-      {fromYearId && toYearId && students.length > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 p-6 rounded-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Ready to promote</p>
-              <p className="text-lg font-bold text-gray-800">
-                {selectedStudents.length} students from {fromYear?.year_name} →{" "}
-                {toYear?.year_name}
-              </p>
-            </div>
-            <button
-              onClick={handlePromote}
-              disabled={loading || selectedStudents.length === 0}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg transition-all"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Academic Year
+            </label>
+            <select
+              value={currentYear}
+              onChange={(e) => setCurrentYear(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  Promoting...
-                </>
-              ) : (
-                <>
-                  <TrendingUp size={20} />
-                  Promote Students
-                </>
-              )}
-            </button>
+              <option value="">Select Current Year</option>
+              {academicYears.map((year) => (
+                <option key={year.id} value={year.id}>
+                  {year.year_name}
+                  {year.is_current ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Next Academic Year
+            </label>
+            <select
+              value={nextYear}
+              onChange={(e) => setNextYear(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="">Select Next Year</option>
+              {academicYears.map((year) => (
+                <option key={year.id} value={year.id}>
+                  {year.year_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {currentYear && nextYear && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+            <ArrowRight className="text-blue-600" size={20} />
+            <span className="text-blue-800">
+              Promoting from <strong>{currentYearName}</strong> to{" "}
+              <strong>{nextYearName}</strong>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+            <Users size={32} className="opacity-80 mb-2" />
+            <h3 className="text-3xl font-bold">
+              {summary.summary.class_11_eligible}
+            </h3>
+            <p className="text-blue-100 text-sm">Class 11 Students</p>
+            <p className="text-blue-100 text-xs mt-1">Eligible for promotion</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+            <GraduationCap size={32} className="opacity-80 mb-2" />
+            <h3 className="text-3xl font-bold">
+              {summary.summary.class_12_eligible}
+            </h3>
+            <p className="text-green-100 text-sm">Class 12 Students</p>
+            <p className="text-green-100 text-xs mt-1">Eligible for graduation</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+            <TrendingUp size={32} className="opacity-80 mb-2" />
+            <h3 className="text-3xl font-bold">
+              {summary.summary.total_students}
+            </h3>
+            <p className="text-purple-100 text-sm">Total Students</p>
+            <p className="text-purple-100 text-xs mt-1">To be processed</p>
           </div>
         </div>
       )}
 
-      {/* History Modal */}
-      {showHistory && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <History size={24} />
-                Promotion History
-              </h2>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <X size={24} />
-              </button>
+      {currentYear && nextYear && !loading && (
+        <>
+          {/* Class 11 Promotion Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                    <TrendingUp className="text-blue-600" size={20} />
+                    Promote Class 11 → Class 12
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {class11Students.length} students available
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={selectAllClass11}
+                    className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    {selectedClass11.length === class11Students.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+                  <button
+                    onClick={handlePromoteToClass12}
+                    disabled={selectedClass11.length === 0}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition font-medium"
+                  >
+                    <CheckCircle size={18} />
+                    Promote ({selectedClass11.length})
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {promotionHistory.length === 0 ? (
+            <div className="p-6">
+              {class11Students.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
-                  <History className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                  <p>No promotion history found</p>
+                  <Users className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                  <p>No Class 11 students found</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {promotionHistory.map((promo) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {class11Students.map((student) => (
                     <div
-                      key={promo.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                      key={student.id}
+                      onClick={() => toggleClass11Selection(student.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition ${
+                        selectedClass11.includes(student.id)
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-blue-300"
+                      }`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-gray-800">
-                            {promo.from_year_name} → {promo.to_year_name}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800">
+                            {student.first_name} {student.last_name}
                           </p>
-                          <p className="text-sm text-gray-500">
-                            {promo.student_count} students promoted
+                          <p className="text-sm text-gray-500 mt-1">
+                            Reg: {student.registration_no}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {student.faculty}
                           </p>
                         </div>
-                        <span className="text-xs text-gray-400">
-                          {new Date(promo.promoted_at).toLocaleDateString()}
-                        </span>
+                        {selectedClass11.includes(student.id) && (
+                          <CheckCircle
+                            className="text-blue-600 flex-shrink-0"
+                            size={20}
+                          />
+                        )}
                       </div>
-                      {promo.promoted_by && (
-                        <p className="text-xs text-gray-500">
-                          By: {promo.promoted_by}
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Class 12 Graduation Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-green-100">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                    <GraduationCap className="text-green-600" size={20} />
+                    Graduate Class 12 Students
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {class12Students.length} students available
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={selectAllClass12}
+                    className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                  >
+                    {selectedClass12.length === class12Students.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+                  <button
+                    onClick={handleGraduate}
+                    disabled={selectedClass12.length === 0}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition font-medium"
+                  >
+                    <GraduationCap size={18} />
+                    Graduate ({selectedClass12.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {class12Students.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Users className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                  <p>No Class 12 students found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {class12Students.map((student) => (
+                    <div
+                      key={student.id}
+                      onClick={() => toggleClass12Selection(student.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition ${
+                        selectedClass12.includes(student.id)
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200 hover:border-green-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800">
+                            {student.first_name} {student.last_name}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Reg: {student.registration_no}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {student.faculty}
+                          </p>
+                        </div>
+                        {selectedClass12.includes(student.id) && (
+                          <CheckCircle
+                            className="text-green-600 flex-shrink-0"
+                            size={20}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+          <span className="ml-3 text-gray-600">Loading students...</span>
         </div>
       )}
+
+      {!currentYear || !nextYear ? (
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 flex items-start gap-3">
+          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
+          <div>
+            <h3 className="font-semibold text-yellow-800 mb-1">
+              Select Academic Years
+            </h3>
+            <p className="text-yellow-700 text-sm">
+              Please select both current and next academic years to view and
+              promote students.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

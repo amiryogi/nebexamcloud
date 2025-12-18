@@ -6,7 +6,7 @@ const getAllExams = async (req, res) => {
   try {
     let { academic_year_id, class_level, faculty } = req.query;
     
-    // 🆕 If no year specified, default to current year
+    // If no year specified, default to current year
     if (!academic_year_id) {
       const [currentYear] = await db.query(
         "SELECT id FROM academic_years WHERE is_current = TRUE LIMIT 1"
@@ -29,25 +29,22 @@ const getAllExams = async (req, res) => {
     `;
     const params = [];
 
-    // 🆕 Filter by Academic Year ID
     if (academic_year_id) {
       query += ` AND e.academic_year_id = ?`;
       params.push(academic_year_id);
     }
 
-    // Filter by Class Level
     if (class_level) {
       query += ` AND e.class_level = ?`;
       params.push(class_level);
     }
 
-    // Filter by Faculty
     if (faculty && faculty !== "All") {
       query += ` AND e.faculty = ?`;
       params.push(faculty);
     }
 
-    query += ` GROUP BY e.id ORDER BY e.exam_date DESC, e.created_at DESC`;
+    query += ` GROUP BY e.id ORDER BY e.exam_date DESC`;
 
     const [exams] = await db.query(query, params);
 
@@ -99,21 +96,20 @@ const createExam = async (req, res) => {
     const {
       exam_name,
       exam_date,
-      academic_year_id, // 🆕 Use academic_year_id instead of academic_year
+      academic_year_id,
       class_level,
       faculty,
       is_final,
-      remarks,
     } = req.body;
 
     // Validation
-    if (!exam_name || !exam_date || !class_level) {
+    if (!exam_name || !exam_date) {
       return res.status(400).json({
-        message: "Exam name, date, and class level are required",
+        message: "Exam name and date are required",
       });
     }
 
-    // 🆕 Auto-assign current academic year if not provided
+    // Auto-assign current academic year if not provided
     let yearId = academic_year_id;
     
     if (!yearId) {
@@ -131,32 +127,36 @@ const createExam = async (req, res) => {
       console.log(`✅ Auto-assigned exam to current academic year: ${yearId}`);
     }
 
+    // Set defaults for class_level and faculty if not provided
+    const finalClassLevel = class_level || '11';
+    const finalFaculty = faculty || null;
+
     // Validate class level
-    if (!['11', '12'].includes(class_level.toString())) {
+    if (!['11', '12'].includes(finalClassLevel.toString())) {
       return res.status(400).json({
         message: "Class level must be 11 or 12",
       });
     }
 
     // Validate faculty if provided
-    if (faculty && !["Science", "Management", "Humanities"].includes(faculty)) {
+    if (finalFaculty && !["Science", "Management", "Humanities"].includes(finalFaculty)) {
       return res.status(400).json({
         message: "Invalid faculty. Must be Science, Management, or Humanities",
       });
     }
 
+    // 🔧 FIX: Removed 'remarks' column
     const [result] = await db.query(
       `INSERT INTO exams 
-       (exam_name, exam_date, academic_year_id, class_level, faculty, is_final, remarks) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (exam_name, exam_date, academic_year_id, class_level, faculty, is_final) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         exam_name,
         exam_date,
-        yearId, // 🆕 Use academic_year_id
-        class_level,
-        faculty || null,
+        yearId,
+        finalClassLevel,
+        finalFaculty,
         is_final ? 1 : 0,
-        remarks || null,
       ]
     );
 
@@ -181,11 +181,10 @@ const updateExam = async (req, res) => {
     const {
       exam_name,
       exam_date,
-      academic_year_id, // 🆕 Use academic_year_id
+      academic_year_id,
       class_level,
       faculty,
       is_final,
-      remarks,
     } = req.body;
 
     // Check if exam exists
@@ -198,12 +197,13 @@ const updateExam = async (req, res) => {
     }
 
     // Validation
-    if (!exam_name || !exam_date || !class_level) {
+    if (!exam_name || !exam_date) {
       return res.status(400).json({
-        message: "Exam name, date, and class level are required",
+        message: "Exam name and date are required",
       });
     }
 
+    // 🔧 FIX: Removed 'remarks' column
     await db.query(
       `UPDATE exams 
        SET exam_name = ?, 
@@ -211,17 +211,15 @@ const updateExam = async (req, res) => {
            academic_year_id = ?, 
            class_level = ?, 
            faculty = ?, 
-           is_final = ?, 
-           remarks = ?
+           is_final = ?
        WHERE id = ?`,
       [
         exam_name,
         exam_date,
-        academic_year_id || existing[0].academic_year_id, // Keep existing if not provided
-        class_level,
+        academic_year_id || existing[0].academic_year_id,
+        class_level || existing[0].class_level,
         faculty || null,
         is_final ? 1 : 0,
-        remarks || null,
         examId,
       ]
     );
@@ -281,7 +279,7 @@ const deleteExam = async (req, res) => {
   }
 };
 
-// 🆕 @desc    Get exams by academic year with statistics
+// @desc    Get exams by academic year with statistics
 // @route   GET /api/exams/year/:year_id/stats
 const getExamsByYearWithStats = async (req, res) => {
   try {
@@ -331,7 +329,7 @@ const getExamsByYearWithStats = async (req, res) => {
   }
 };
 
-// 🆕 @desc    Get exam statistics for dashboard
+// @desc    Get exam statistics for dashboard
 // @route   GET /api/exams/stats/summary?academic_year_id=1
 const getExamStatsSummary = async (req, res) => {
   try {
@@ -401,6 +399,6 @@ module.exports = {
   createExam,
   updateExam,
   deleteExam,
-  getExamsByYearWithStats, // 🆕 NOW EXPORTED
-  getExamStatsSummary,     // 🆕 NEW ENDPOINT
+  getExamsByYearWithStats,
+  getExamStatsSummary,
 };

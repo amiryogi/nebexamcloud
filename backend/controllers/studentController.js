@@ -2,6 +2,7 @@ const db = require("../config/db");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { convertBStoAD } = require("../utils/dateConverter");
 
 // Configure multer for student images
 const storage = multer.diskStorage({
@@ -13,9 +14,7 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `student_${Date.now()}${path.extname(
-      file.originalname
-    )}`;
+    const uniqueName = `student_${Date.now()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
@@ -38,8 +37,7 @@ const upload = multer({
 // @route   GET /api/students?class_level=11&faculty=Science&status=active&academic_year_id=1
 const getAllStudents = async (req, res) => {
   try {
-    const { class_level, faculty, status, academic_year_id, search } =
-      req.query;
+    const { class_level, faculty, status, academic_year_id, search } = req.query;
 
     let query = `
       SELECT 
@@ -169,6 +167,31 @@ const createStudent = async (req, res) => {
       subjects,
     } = req.body;
 
+    // 🆕 AUTO-CONVERT BS DATE TO AD IF NOT PROVIDED
+    let finalDobAd = dob_ad;
+    let finalDobBs = dob_bs;
+
+    if (!finalDobAd && finalDobBs) {
+      // Convert BS to AD
+      finalDobAd = convertBStoAD(finalDobBs);
+      
+      if (!finalDobAd) {
+        await connection.rollback();
+        return res.status(400).json({
+          message: `Invalid date of birth (BS): ${finalDobBs}. Please use format YYYY-MM-DD`,
+        });
+      }
+      
+      console.log(`✅ Converted DOB: ${finalDobBs} (BS) → ${finalDobAd} (AD)`);
+    }
+
+    if (!finalDobAd) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "Date of birth is required (either dob_bs or dob_ad)",
+      });
+    }
+
     // AUTO-ASSIGN CURRENT ACADEMIC YEAR IF NOT PROVIDED
     let yearId = academic_year_id;
 
@@ -207,8 +230,8 @@ const createStudent = async (req, res) => {
         middle_name,
         last_name,
         gender,
-        dob_ad,
-        dob_bs,
+        finalDobAd,
+        finalDobBs,
         parent_name,
         enrollment_year,
         class_level,
@@ -308,6 +331,24 @@ const updateStudent = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
+    // 🆕 AUTO-CONVERT BS DATE TO AD IF NEEDED
+    let finalDobAd = dob_ad || existing[0].dob_ad;
+    let finalDobBs = dob_bs || existing[0].dob_bs;
+
+    // If BS date changed but AD not provided, convert it
+    if (dob_bs && dob_bs !== existing[0].dob_bs && !dob_ad) {
+      finalDobAd = convertBStoAD(dob_bs);
+      
+      if (!finalDobAd) {
+        await connection.rollback();
+        return res.status(400).json({
+          message: `Invalid date of birth (BS): ${dob_bs}`,
+        });
+      }
+      
+      console.log(`✅ Converted DOB: ${finalDobBs} (BS) → ${finalDobAd} (AD)`);
+    }
+
     let image_url = existing[0].image_url;
 
     if (req.file) {
@@ -320,7 +361,7 @@ const updateStudent = async (req, res) => {
       image_url = `/uploads/students/${req.file.filename}`;
     }
 
-    // Update student (include academic_year_id if provided)
+    // Update student
     let updateQuery = `
       UPDATE students 
       SET registration_no = ?, symbol_no = ?, first_name = ?, 
@@ -337,8 +378,8 @@ const updateStudent = async (req, res) => {
       middle_name,
       last_name,
       gender,
-      dob_ad,
-      dob_bs,
+      finalDobAd,
+      finalDobBs,
       parent_name,
       enrollment_year,
       class_level,
@@ -431,7 +472,6 @@ const deleteStudent = async (req, res) => {
   }
 };
 
-// GET STUDENTS BY YEAR FOR PROMOTION
 // @desc    Get students eligible for promotion
 // @route   GET /api/students/promotion/eligible?class_level=11&academic_year_id=1
 const getPromotionEligibleStudents = async (req, res) => {
