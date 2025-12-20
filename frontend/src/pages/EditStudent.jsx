@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Camera, Save, ArrowLeft, Loader2 } from "lucide-react";
 
-// Define the Backend URL explicitly to prevent proxy issues
 const API_BASE_URL = "http://localhost:5000";
 
 const EditStudent = () => {
@@ -12,7 +11,7 @@ const EditStudent = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // 1. Form State
+  // 1. Form State - 🔥 NOW INCLUDES academic_year_id
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -23,6 +22,7 @@ const EditStudent = () => {
     dob_bs: "",
     parent_name: "",
     enrollment_year: "",
+    academic_year_id: "", // 🔥 ADDED
     class_level: "11",
     faculty: "Science",
     section: "A",
@@ -37,11 +37,13 @@ const EditStudent = () => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
 
-  // Helper: Get Token (Robust check)
+  // 🔥 NEW: Academic Years State
+  const [academicYears, setAcademicYears] = useState([]);
+
+  // Helper: Get Token
   const getAuthHeaders = () => {
     let token = localStorage.getItem("token");
 
-    // If no direct token, check if it's inside a 'user' object (Common in MERN apps)
     if (!token) {
       const userStr = localStorage.getItem("user");
       if (userStr) {
@@ -54,7 +56,6 @@ const EditStudent = () => {
       }
     }
 
-    // Clean up token if it's "undefined" or "null" string
     if (token === "undefined" || token === "null") token = null;
 
     if (!token) {
@@ -71,7 +72,6 @@ const EditStudent = () => {
       return await response.json();
     }
     const text = await response.text();
-    // Return an error object wrapping the text content
     return {
       isError: true,
       message: `Server returned non-JSON: ${text.substring(0, 150)}...`,
@@ -79,7 +79,41 @@ const EditStudent = () => {
     };
   };
 
-  // Helper: Fetch Subjects Direct Call
+  // 🔥 NEW: Fetch Academic Years
+  const fetchAcademicYears = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/academic-years`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        console.warn("Academic years fetch failed:", response.status);
+        setAcademicYears([]); // Ensure it stays as empty array
+        return;
+      }
+
+      const data = await safeJson(response);
+
+      if (data.isError) {
+        console.error("Academic years error:", data.message);
+        setAcademicYears([]); // Ensure it stays as empty array
+        return;
+      }
+
+      // ✅ Ensure data is an array
+      if (Array.isArray(data)) {
+        setAcademicYears(data);
+      } else {
+        console.error("Academic years response is not an array:", data);
+        setAcademicYears([]);
+      }
+    } catch (error) {
+      console.error("Academic years fetch error:", error);
+      setAcademicYears([]); // Ensure it stays as empty array
+    }
+  };
+
+  // Helper: Fetch Subjects
   const fetchSubjects = async (classLevel, faculty) => {
     try {
       const params = new URLSearchParams({
@@ -115,7 +149,10 @@ const EditStudent = () => {
       try {
         if (!id) throw new Error("Invalid Student ID");
 
-        // A. Fetch Student Details (Use absolute URL)
+        // A. Fetch Academic Years first
+        await fetchAcademicYears();
+
+        // B. Fetch Student Details
         const studentRes = await fetch(`${API_BASE_URL}/api/students/${id}`, {
           headers: getAuthHeaders(),
         });
@@ -125,14 +162,12 @@ const EditStudent = () => {
             throw new Error("Unauthorized - Please Login");
           if (studentRes.status === 404) throw new Error("Student not found");
           if (studentRes.status === 500) {
-            // Try to get more info
             const errBody = await safeJson(studentRes);
             const msg =
               errBody.message || errBody.raw || "Internal Server Error";
             throw new Error(`Server Error (500): ${msg}`);
           }
 
-          // Generic error handling
           const errData = await safeJson(studentRes);
           throw new Error(errData.message || `API Error: ${studentRes.status}`);
         }
@@ -140,10 +175,10 @@ const EditStudent = () => {
         const studentData = await safeJson(studentRes);
 
         if (studentData.isError) {
-          throw new Error(studentData.message); // Throw the non-JSON error
+          throw new Error(studentData.message);
         }
 
-        // Populate Form
+        // 🔥 UPDATED: Populate Form INCLUDING academic_year_id
         setFormData({
           first_name: studentData.first_name || "",
           middle_name: studentData.middle_name || "",
@@ -154,12 +189,18 @@ const EditStudent = () => {
           dob_bs: studentData.dob_bs || "",
           parent_name: studentData.parent_name || "",
           enrollment_year: studentData.enrollment_year || "",
+          academic_year_id: studentData.academic_year_id || "", // 🔥 ADDED
           class_level: studentData.class_level || "11",
           faculty: studentData.faculty || "Science",
           section: studentData.section || "A",
           address: studentData.address || "",
           contact_no: studentData.contact_no || "",
         });
+
+        console.log(
+          "✅ Loaded student academic_year_id:",
+          studentData.academic_year_id
+        );
 
         // Set Image Preview if exists
         if (studentData.image_url) {
@@ -169,13 +210,12 @@ const EditStudent = () => {
           setImagePreview(imgUrl);
         }
 
-        // Set Selected Subjects (Map object array to ID array)
+        // Set Selected Subjects
         if (studentData.subjects && Array.isArray(studentData.subjects)) {
           setSelectedSubjects(studentData.subjects.map((s) => s.id));
         }
 
-        // B. Fetch Available Subjects based on student's class/faculty
-        // Use the values from studentData, falling back to defaults if missing
+        // C. Fetch Available Subjects
         await fetchSubjects(
           studentData.class_level || "11",
           studentData.faculty || "Science"
@@ -183,8 +223,6 @@ const EditStudent = () => {
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error(error.message || "Could not load student data");
-        // Optional: navigate back on fatal error
-        // navigate("/students");
       } finally {
         setInitialLoading(false);
       }
@@ -198,11 +236,9 @@ const EditStudent = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // If class or faculty changes, we need new subjects
     if (name === "class_level" || name === "faculty") {
       const newClass = name === "class_level" ? value : formData.class_level;
       const newFaculty = name === "faculty" ? value : formData.faculty;
-      // Clear selection to avoid mismatch
       setSelectedSubjects([]);
       await fetchSubjects(newClass, newFaculty);
     }
@@ -234,9 +270,30 @@ const EditStudent = () => {
 
     try {
       const data = new FormData();
+
+      // 🔧 FIX: Convert empty strings to null and append all fields properly
       Object.keys(formData).forEach((key) => {
-        data.append(key, formData[key]);
+        const value = formData[key];
+
+        // Convert empty string to null, otherwise use the value
+        if (value === "" || value === null || value === undefined) {
+          // Don't append null/empty values - let backend handle defaults
+          // Exception: academic_year_id should be sent if it exists
+          if (key === "academic_year_id" && value) {
+            data.append(key, value);
+          }
+          // Skip other empty values
+          return;
+        }
+
+        // Append non-empty values
+        data.append(key, value);
       });
+
+      console.log("📤 Form data being sent:");
+      for (let [key, value] of data.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
 
       // Only append image if a new one was selected
       if (image) {
@@ -245,7 +302,7 @@ const EditStudent = () => {
 
       data.append("subject_ids", JSON.stringify(selectedSubjects));
 
-      // PUT Request with Auth Header and Absolute URL
+      // PUT Request
       const response = await fetch(`${API_BASE_URL}/api/students/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -260,7 +317,7 @@ const EditStudent = () => {
       toast.success("Student updated successfully!");
       navigate("/students");
     } catch (error) {
-      console.error(error);
+      console.error("❌ Update error:", error);
       toast.error(error.message || "Update failed. Check console for details.");
     } finally {
       setLoading(false);
@@ -448,6 +505,35 @@ const EditStudent = () => {
             Academic Details
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 🔥 NEW: Academic Year Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Academic Year
+              </label>
+              <select
+                name="academic_year_id"
+                value={formData.academic_year_id}
+                onChange={handleChange}
+                className="w-full border rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Keep Current Year</option>
+                {Array.isArray(academicYears) && academicYears.length > 0 ? (
+                  academicYears.map((year) => (
+                    <option key={year.id} value={year.id}>
+                      {year.year_name} {year.is_current ? "(Current)" : ""}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    Loading academic years...
+                  </option>
+                )}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave blank to keep student's current academic year
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Enrollment Year (BS)
@@ -460,6 +546,7 @@ const EditStudent = () => {
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Class Level
@@ -474,6 +561,7 @@ const EditStudent = () => {
                 <option value="12">Grade 12</option>
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Faculty
@@ -489,6 +577,7 @@ const EditStudent = () => {
                 <option value="Humanities">Humanities</option>
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 NEB Reg. No
@@ -502,6 +591,7 @@ const EditStudent = () => {
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Symbol No
@@ -515,6 +605,7 @@ const EditStudent = () => {
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Section

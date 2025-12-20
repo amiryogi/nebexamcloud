@@ -38,7 +38,7 @@ const createStudent = async (req, res) => {
       dob_bs,
       parent_name,
       enrollment_year,
-      academic_year_id, // 🔥 NEW: Academic Year
+      academic_year_id,
       class_level,
       faculty,
       section,
@@ -94,21 +94,21 @@ const createStudent = async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         first_name,
-        middle_name,
+        middle_name || null,
         last_name,
-        registration_no,
-        symbol_no,
+        registration_no || null,
+        symbol_no || null,
         gender,
         dob_bs,
         dob_ad,
-        parent_name,
+        parent_name || null,
         enrollment_year,
-        finalAcademicYearId, // 🔥 IMPORTANT: Now included!
+        finalAcademicYearId,
         class_level,
-        faculty,
-        section,
-        address,
-        contact_no,
+        faculty || null,
+        section || null,
+        address || null,
+        contact_no || null,
         image_url,
       ]
     );
@@ -118,82 +118,49 @@ const createStudent = async (req, res) => {
     console.log("✅ Linked to academic year ID:", finalAcademicYearId);
 
     // ✅ Handle subject enrollment
-    console.log("📚 Subject IDs received:", subject_ids);
-    console.log("📚 Subject IDs type:", typeof subject_ids);
-
     if (subject_ids) {
       let subjects = [];
 
-      // Parse subject_ids based on type
       if (typeof subject_ids === "string") {
         try {
           subjects = JSON.parse(subject_ids);
-          console.log("📚 Parsed subjects from string:", subjects);
         } catch (parseError) {
           console.error("❌ JSON Parse Error:", parseError.message);
-          // Try comma-separated format
           subjects = subject_ids
             .split(",")
             .map((id) => id.trim())
             .filter((id) => id);
-          console.log("📚 Parsed subjects from CSV:", subjects);
         }
       } else if (Array.isArray(subject_ids)) {
         subjects = subject_ids;
-        console.log("📚 Subjects already array:", subjects);
-      } else {
-        console.warn("⚠️ Unexpected subject_ids format:", subject_ids);
       }
 
-      // ✅ Validate and insert subjects
       if (subjects && subjects.length > 0) {
         console.log(
-          `📚 Attempting to insert ${subjects.length} subjects for student ${newStudentId}`
+          `📚 Inserting ${subjects.length} subjects for student ${newStudentId}`
         );
 
-        // Validate each subject ID
         const validSubjects = subjects.filter((sid) => {
           const id = parseInt(sid);
-          if (isNaN(id) || id <= 0) {
-            console.warn(`⚠️ Invalid subject ID: ${sid}`);
-            return false;
-          }
-          return true;
+          return !isNaN(id) && id > 0;
         });
 
-        if (validSubjects.length === 0) {
-          console.warn("⚠️ No valid subject IDs found");
-        } else {
+        if (validSubjects.length > 0) {
           const values = validSubjects.map((sid) => [
             newStudentId,
             parseInt(sid),
             enrollment_year,
           ]);
 
-          console.log("📚 Values to insert:", JSON.stringify(values, null, 2));
-
-          try {
-            const [subjectResult] = await connection.query(
-              `INSERT INTO student_subjects (student_id, subject_id, academic_year) VALUES ?`,
-              [values]
-            );
-            console.log(
-              `✅ Successfully inserted ${subjectResult.affectedRows} subject enrollments`
-            );
-          } catch (subjectError) {
-            console.error("❌ Subject Insert Error:", subjectError.message);
-            console.error("❌ SQL State:", subjectError.sqlState);
-            console.error("❌ Error Code:", subjectError.code);
-            throw new Error(
-              `Failed to enroll subjects: ${subjectError.message}`
-            );
-          }
+          const [subjectResult] = await connection.query(
+            `INSERT INTO student_subjects (student_id, subject_id, academic_year) VALUES ?`,
+            [values]
+          );
+          console.log(
+            `✅ Successfully inserted ${subjectResult.affectedRows} subject enrollments`
+          );
         }
-      } else {
-        console.warn("⚠️ No subjects provided or subjects array is empty");
       }
-    } else {
-      console.warn("⚠️ subject_ids is null or undefined");
     }
 
     await connection.commit();
@@ -207,7 +174,6 @@ const createStudent = async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error("❌ CREATE STUDENT ERROR:", error);
-    console.error("❌ Error Stack:", error.stack);
     res.status(500).json({
       message: error.message,
       details: process.env.NODE_ENV === "development" ? error.stack : undefined,
@@ -236,7 +202,7 @@ const updateStudent = async (req, res) => {
       dob_bs,
       parent_name,
       enrollment_year,
-      academic_year_id, // 🔥 NEW: Allow updating academic year
+      academic_year_id,
       class_level,
       faculty,
       section,
@@ -252,7 +218,43 @@ const updateStudent = async (req, res) => {
       if (!dob_ad) throw new Error("Invalid BS Date format");
     }
 
-    // 2. Prepare Update Query - 🔥 NOW INCLUDES academic_year_id
+    // 🔧 FIX: Handle academic_year_id properly
+    let finalAcademicYearId = academic_year_id;
+
+    if (!finalAcademicYearId || finalAcademicYearId === "") {
+      console.log(
+        "⚠️ No academic_year_id in request, fetching student's current value..."
+      );
+
+      const [currentStudent] = await connection.query(
+        "SELECT academic_year_id FROM students WHERE id = ?",
+        [studentId]
+      );
+
+      if (currentStudent.length > 0 && currentStudent[0].academic_year_id) {
+        finalAcademicYearId = currentStudent[0].academic_year_id;
+        console.log("✅ Using existing academic year ID:", finalAcademicYearId);
+      } else {
+        // If student doesn't have one, get current year
+        const [currentYear] = await connection.query(
+          "SELECT id FROM academic_years WHERE is_current = 1 LIMIT 1"
+        );
+
+        if (currentYear.length > 0) {
+          finalAcademicYearId = currentYear[0].id;
+          console.log(
+            "✅ Using current academic year ID:",
+            finalAcademicYearId
+          );
+        } else {
+          // Last resort: set to null
+          finalAcademicYearId = null;
+          console.warn("⚠️ No academic year found, setting to NULL");
+        }
+      }
+    }
+
+    // 2. Prepare Update Query - Convert all undefined/empty to null
     let updateQuery = `UPDATE students SET 
             first_name=?, middle_name=?, last_name=?, 
             registration_no=?, symbol_no=?, 
@@ -262,24 +264,27 @@ const updateStudent = async (req, res) => {
             class_level=?, faculty=?, section=?, 
             address=?, contact_no=?`;
 
+    // 🔧 FIX: Convert empty strings and undefined to null
     const params = [
-      first_name,
-      middle_name,
-      last_name,
-      registration_no,
-      symbol_no,
-      gender,
-      dob_bs,
+      first_name || null,
+      middle_name || null,
+      last_name || null,
+      registration_no || null,
+      symbol_no || null,
+      gender || null,
+      dob_bs || null,
       dob_ad,
-      parent_name,
-      enrollment_year,
-      academic_year_id, // 🔥 IMPORTANT: Now included in update
-      class_level,
-      faculty,
-      section,
-      address,
-      contact_no,
+      parent_name || null,
+      enrollment_year || null,
+      finalAcademicYearId, // ✅ Always has a valid value now
+      class_level || null,
+      faculty || null,
+      section || null,
+      address || null,
+      contact_no || null,
     ];
+
+    console.log("📝 Update params (converted empty to null):", params);
 
     // Handle Image Update (only if new file uploaded)
     if (req.file) {
@@ -292,8 +297,8 @@ const updateStudent = async (req, res) => {
 
     await connection.execute(updateQuery, params);
     console.log("✅ Student basic info updated");
-    if (academic_year_id) {
-      console.log("✅ Academic year updated to:", academic_year_id);
+    if (finalAcademicYearId) {
+      console.log("✅ Academic year:", finalAcademicYearId);
     }
 
     // 3. Update Subjects (Delete old, Insert new)
@@ -331,7 +336,11 @@ const updateStudent = async (req, res) => {
       if (subjectsToEnroll.length > 0) {
         const enrollmentValues = subjectsToEnroll
           .filter((sid) => !isNaN(parseInt(sid)))
-          .map((subId) => [studentId, parseInt(subId), enrollment_year]);
+          .map((subId) => [
+            studentId,
+            parseInt(subId),
+            enrollment_year || null,
+          ]);
 
         console.log("📚 Inserting subjects:", enrollmentValues);
 
@@ -363,7 +372,6 @@ const getAllStudents = async (req, res) => {
   try {
     const { class_level, faculty, search, academic_year_id } = req.query;
 
-    // 🔥 UPDATED: Now includes academic year in JOIN
     let sql = `
       SELECT 
         s.*,
@@ -391,7 +399,6 @@ const getAllStudents = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    // 🔥 NEW: Filter by academic year
     if (academic_year_id) {
       sql += ` AND s.academic_year_id = ?`;
       params.push(academic_year_id);
@@ -409,7 +416,7 @@ const getAllStudents = async (req, res) => {
 
 const getStudentById = async (req, res) => {
   try {
-    // 1. Get Student Basic Info with Academic Year - 🔥 UPDATED
+    // 1. Get Student Basic Info with Academic Year
     const [rows] = await db.query(
       `SELECT 
         s.*,
