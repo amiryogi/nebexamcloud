@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
-import {
-  Calendar,
-  Plus,
-  Trash2,
-  CheckCircle,
-  BarChart3,
-  Loader2,
-} from "lucide-react";
+import { Calendar, Plus, Trash2, CheckCircle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { convertBStoAD } from "../utils/dateConverter";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -69,8 +63,40 @@ const AcademicYears = () => {
     }
   };
 
+  // 🆕 Auto-convert BS to AD when BS date changes
+  const handleStartDateBSChange = (bsDate) => {
+    setFormData((prev) => ({ ...prev, start_date_bs: bsDate }));
+
+    // Auto-convert to AD if valid BS date
+    if (bsDate && bsDate.length === 10) {
+      const adDate = convertBStoAD(bsDate);
+      if (adDate) {
+        setFormData((prev) => ({ ...prev, start_date_ad: adDate }));
+      }
+    }
+  };
+
+  // 🆕 Auto-convert BS to AD when BS date changes
+  const handleEndDateBSChange = (bsDate) => {
+    setFormData((prev) => ({ ...prev, end_date_bs: bsDate }));
+
+    // Auto-convert to AD if valid BS date
+    if (bsDate && bsDate.length === 10) {
+      const adDate = convertBStoAD(bsDate);
+      if (adDate) {
+        setFormData((prev) => ({ ...prev, end_date_ad: adDate }));
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate that AD dates are populated
+    if (!formData.start_date_ad || !formData.end_date_ad) {
+      toast.error("Please enter valid BS dates");
+      return;
+    }
 
     try {
       const url = selectedYear
@@ -336,6 +362,7 @@ const AcademicYears = () => {
                 />
               </div>
 
+              {/* 🆕 Start Date BS with Auto-convert */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -347,34 +374,31 @@ const AcademicYears = () => {
                     placeholder="2081-01-01"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={formData.start_date_bs}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        start_date_bs: e.target.value,
-                      })
-                    }
+                    onChange={(e) => handleStartDateBSChange(e.target.value)}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: YYYY-MM-DD
+                  </p>
                 </div>
 
+                {/* 🆕 Start Date AD - Auto-populated, Read-only */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date (AD) <span className="text-red-500">*</span>
+                    Start Date (AD)
                   </label>
                   <input
                     type="date"
-                    
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    readOnly
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-600 cursor-not-allowed"
                     value={formData.start_date_ad}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        start_date_ad: e.target.value,
-                      })
-                    }
                   />
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Auto-converted
+                  </p>
                 </div>
               </div>
 
+              {/* 🆕 End Date BS with Auto-convert */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -386,25 +410,27 @@ const AcademicYears = () => {
                     placeholder="2081-12-30"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={formData.end_date_bs}
-                    onChange={(e) =>
-                      setFormData({ ...formData, end_date_bs: e.target.value })
-                    }
+                    onChange={(e) => handleEndDateBSChange(e.target.value)}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: YYYY-MM-DD
+                  </p>
                 </div>
 
+                {/* 🆕 End Date AD - Auto-populated, Read-only */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date (AD) <span className="text-red-500">*</span>
+                    End Date (AD)
                   </label>
                   <input
                     type="date"
-                    
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    readOnly
+                    className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-600 cursor-not-allowed"
                     value={formData.end_date_ad}
-                    onChange={(e) =>
-                      setFormData({ ...formData, end_date_ad: e.target.value })
-                    }
                   />
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Auto-converted
+                  </p>
                 </div>
               </div>
 
