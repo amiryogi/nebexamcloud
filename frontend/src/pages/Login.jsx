@@ -1,11 +1,17 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { SchoolSettingsContext } from "../context/SchoolSettingsContext";
 import toast from "react-hot-toast";
+
+const API_BASE_URL = "http://localhost:5000";
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
+  const { schoolSettings, loading: settingsLoading } = useContext(
+    SchoolSettingsContext
+  );
 
   const [formData, setFormData] = useState({
     username: "",
@@ -51,27 +57,52 @@ const Login = () => {
       <div className="max-w-md w-full">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <svg
-              className="h-10 w-10 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          {/* School Logo or Default Icon */}
+          <div className="mx-auto h-20 w-20 mb-4 flex items-center justify-center">
+            {settingsLoading ? (
+              <div className="h-20 w-20 bg-gray-200 rounded-full animate-pulse"></div>
+            ) : schoolSettings?.school_logo_path ? (
+              <img
+                src={`${API_BASE_URL}${schoolSettings.school_logo_path}`}
+                alt="School Logo"
+                className="h-20 w-20 object-contain rounded-full"
               />
-            </svg>
+            ) : (
+              <div className="h-20 w-20 bg-blue-600 rounded-full flex items-center justify-center">
+                <svg
+                  className="h-12 w-12 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+              </div>
+            )}
           </div>
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            NEB Student Management
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to access your dashboard
-          </p>
+
+          {/* School Name or Default */}
+          {settingsLoading ? (
+            <div className="space-y-2">
+              <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto animate-pulse"></div>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-3xl font-extrabold text-gray-900">
+                {schoolSettings?.school_name || "NEB Student Management"}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                {schoolSettings?.school_address ||
+                  "Sign in to access your dashboard"}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Login Form Card */}
@@ -226,7 +257,7 @@ const Login = () => {
             <div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || settingsLoading}
                 className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
                 {loading ? (
@@ -272,7 +303,8 @@ const Login = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
-            © 2024 NEB Student Management System
+            © 2024{" "}
+            {schoolSettings?.school_name || "NEB Student Management System"}
           </p>
         </div>
       </div>
