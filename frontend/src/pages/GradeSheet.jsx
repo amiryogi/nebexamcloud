@@ -114,21 +114,21 @@ const NEBGradesheet = () => {
     setLoading(true);
     setViewMode("single");
     setSearchTerm("");
-    
+
     try {
       const res = await fetch(
         `${API_BASE_URL}/api/reports/student/${student.id}?exam_id=${selectedExam}`,
         { headers: getAuthHeaders() }
       );
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Failed to generate report");
       }
-      
+
       const data = await res.json();
       console.log("📄 Single report data:", data);
-      
+
       setReportData(data);
       setBatchData([]);
       toast.success("Gradesheet generated successfully");
@@ -146,11 +146,11 @@ const NEBGradesheet = () => {
       toast.error("Please select an exam first");
       return;
     }
-    
+
     const confirmMsg = `Generate gradesheets for Class ${classLevel}${
       batchFaculty ? ` (${batchFaculty})` : ""
     }${batchYear ? ` Year ${batchYear}` : ""}?`;
-    
+
     if (!window.confirm(confirmMsg)) return;
 
     setLoading(true);
@@ -167,27 +167,30 @@ const NEBGradesheet = () => {
         params.append("academic_year_id", batchYear);
       }
 
-      console.log("📡 Fetching batch reports:", `/api/reports/class/${classLevel}?${params}`);
+      console.log(
+        "📡 Fetching batch reports:",
+        `/api/reports/class/${classLevel}?${params}`
+      );
 
       const res = await fetch(
         `${API_BASE_URL}/api/reports/class/${classLevel}?${params.toString()}`,
         { headers: getAuthHeaders() }
       );
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Failed to fetch batch reports");
       }
-      
+
       const data = await res.json();
-      
+
       console.log("📊 Batch API Response:", data);
-      
+
       // 🔧 FIX: Extract reports array from nested structure
       const reportsArray = data.reports || [];
-      
+
       console.log("📋 Reports array length:", reportsArray.length);
-      
+
       if (reportsArray.length === 0) {
         toast.error("No students found matching the criteria");
         setBatchData([]);
@@ -336,7 +339,8 @@ const NEBGradesheet = () => {
         {(reportData || batchData.length > 0) && (
           <div className="bg-green-50 border-2 border-green-300 p-4 rounded-xl flex justify-between items-center">
             <span className="font-medium text-green-800">
-              ✅ {batchData.length > 0
+              ✅{" "}
+              {batchData.length > 0
                 ? `${batchData.length} gradesheets ready`
                 : "1 gradesheet ready"}
             </span>
@@ -344,7 +348,8 @@ const NEBGradesheet = () => {
               onClick={handlePrint}
               className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 flex items-center gap-2 shadow-md transition"
             >
-              <Printer size={20} /> Print {batchData.length > 0 ? `All (${batchData.length})` : ""}
+              <Printer size={20} /> Print{" "}
+              {batchData.length > 0 ? `All (${batchData.length})` : ""}
             </button>
           </div>
         )}
@@ -365,7 +370,9 @@ const NEBGradesheet = () => {
           <h3 className="text-lg font-semibold text-gray-600 mb-2">
             No Gradesheet Generated
           </h3>
-          <p className="text-sm">Select an exam and search for a student, or use batch generation.</p>
+          <p className="text-sm">
+            Select an exam and search for a student, or use batch generation.
+          </p>
         </div>
       )}
 
@@ -375,17 +382,20 @@ const NEBGradesheet = () => {
       )}
 
       {/* Batch Reports */}
-      {!loading && viewMode === "batch" && batchData.length > 0 && schoolSettings && (
-        <div className="print:block">
-          {batchData.map((report, idx) => (
-            <GradesheetTemplate
-              key={idx}
-              data={report}
-              schoolSettings={schoolSettings}
-            />
-          ))}
-        </div>
-      )}
+      {!loading &&
+        viewMode === "batch" &&
+        batchData.length > 0 &&
+        schoolSettings && (
+          <div className="print:block">
+            {batchData.map((report, idx) => (
+              <GradesheetTemplate
+                key={idx}
+                data={report}
+                schoolSettings={schoolSettings}
+              />
+            ))}
+          </div>
+        )}
     </div>
   );
 };
@@ -438,17 +448,31 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
         <p className="font-bold">
           Student: {data.student.first_name} {data.student.last_name}
         </p>
-        <p>DOB: {data.student.dob_bs} ({new Date(data.student.dob_ad).toLocaleDateString()})</p>
-        <p>Reg No: {data.student.registration_no || "N/A"} | Symbol: {data.student.symbol_no || "N/A"} | Class: {data.student.class_level}</p>
-        <p>Academic Year: {data.academic_year?.name || data.student.enrollment_year}</p>
+        <p>
+          DOB: {data.student.dob_bs} (
+          {new Date(data.student.dob_ad).toLocaleDateString()})
+        </p>
+        <p>
+          Reg No: {data.student.registration_no || "N/A"} | Symbol:{" "}
+          {data.student.symbol_no || "N/A"} | Class: {data.student.class_level}
+        </p>
+        <p>
+          Academic Year:{" "}
+          {data.academic_year?.name || data.student.enrollment_year}
+        </p>
       </div>
 
       {/* Marks Table */}
-      <table className="w-full border-2 border-black text-xs" style={{ borderCollapse: "collapse" }}>
+      <table
+        className="w-full border-2 border-black text-xs"
+        style={{ borderCollapse: "collapse" }}
+      >
         <thead>
           <tr className="border-b-2 border-black bg-gray-50">
             <th className="border-r border-black p-2 font-bold">CODE</th>
-            <th className="border-r border-black p-2 text-left font-bold">SUBJECT</th>
+            <th className="border-r border-black p-2 text-left font-bold">
+              SUBJECT
+            </th>
             <th className="border-r border-black p-2 font-bold">CH</th>
             <th className="border-r border-black p-2 font-bold">GP</th>
             <th className="border-r border-black p-2 font-bold">GRADE</th>
@@ -460,22 +484,45 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
           {data.subjects?.map((sub, idx) => (
             <>
               <tr key={`th-${idx}`} className="border-b border-black">
-                <td className="border-r border-black p-2 text-center">{sub.theory_code || sub.subject_code}</td>
-                <td className="border-r border-black p-2">{sub.subject_name} (Th)</td>
-                <td className="border-r border-black p-2 text-center">{sub.theory_credit_hour}</td>
-                <td className="border-r border-black p-2 text-center font-bold">{sub.theory_grade_point}</td>
-                <td className="border-r border-black p-2 text-center font-bold">{sub.theory_grade}</td>
-                <td rowSpan="2" className="border-r border-black p-2 text-center font-bold text-base">
+                <td className="border-r border-black p-2 text-center">
+                  {sub.theory_code || sub.subject_code}
+                </td>
+                <td className="border-r border-black p-2">
+                  {sub.subject_name} (Th)
+                </td>
+                <td className="border-r border-black p-2 text-center">
+                  {sub.theory_credit_hour}
+                </td>
+                <td className="border-r border-black p-2 text-center font-bold">
+                  {sub.theory_grade_point}
+                </td>
+                <td className="border-r border-black p-2 text-center font-bold">
+                  {sub.theory_grade}
+                </td>
+                <td
+                  rowSpan="2"
+                  className="border-r border-black p-2 text-center font-bold text-base"
+                >
                   {sub.final_grade}
                 </td>
                 <td rowSpan="2" className="p-2"></td>
               </tr>
               <tr key={`pr-${idx}`} className="border-b border-black">
-                <td className="border-r border-black p-2 text-center">{sub.practical_code}</td>
-                <td className="border-r border-black p-2">{sub.subject_name} (Pr)</td>
-                <td className="border-r border-black p-2 text-center">{sub.practical_credit_hour}</td>
-                <td className="border-r border-black p-2 text-center font-bold">{sub.practical_grade_point}</td>
-                <td className="border-r border-black p-2 text-center font-bold">{sub.practical_grade}</td>
+                <td className="border-r border-black p-2 text-center">
+                  {sub.practical_code}
+                </td>
+                <td className="border-r border-black p-2">
+                  {sub.subject_name} (Pr)
+                </td>
+                <td className="border-r border-black p-2 text-center">
+                  {sub.practical_credit_hour}
+                </td>
+                <td className="border-r border-black p-2 text-center font-bold">
+                  {sub.practical_grade_point}
+                </td>
+                <td className="border-r border-black p-2 text-center font-bold">
+                  {sub.practical_grade}
+                </td>
               </tr>
             </>
           ))}
@@ -484,7 +531,9 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
           <tr className="border-t-2 border-black">
             <td colSpan="7" className="p-3 text-center">
               <span className="font-bold">Grade Point Average (GPA):</span>
-              <span className="ml-4 text-2xl font-bold text-blue-600">{data.gpa || "0.00"}</span>
+              <span className="ml-4 text-2xl font-bold text-blue-600">
+                {data.gpa || "0.00"}
+              </span>
             </td>
           </tr>
         </tfoot>
@@ -504,7 +553,9 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
               className="h-12 ml-auto mb-2"
             />
           )}
-          <p className="font-bold">{schoolSettings?.principal_name || "Principal Name"}</p>
+          <p className="font-bold">
+            {schoolSettings?.principal_name || "Principal Name"}
+          </p>
           <p className="font-bold">PRINCIPAL</p>
         </div>
         <p className="mt-4">DATE OF ISSUE: {new Date().toLocaleDateString()}</p>

@@ -50,8 +50,7 @@ const getStudentGradesheet = async (req, res) => {
 
     const exam = exams[0];
 
-    // 🔧 FIX: Query based on MARKS, not student_subjects
-    // This allows promoted students to see their previous year's marks
+    // 3. Fetch Marks for SPECIFIC EXAM with Subject Details
     const [results] = await db.query(
       `SELECT 
           s.id as subject_id, 
@@ -64,26 +63,15 @@ const getStudentGradesheet = async (req, res) => {
           s.practical_credit_hour,
           m.theory_obtained, 
           m.practical_obtained
-       FROM marks m
-       JOIN subjects s ON m.subject_id = s.id
-       WHERE m.student_id = ? 
+       FROM student_subjects ss
+       JOIN subjects s ON ss.subject_id = s.id
+       LEFT JOIN marks m ON s.id = m.subject_id 
+           AND m.student_id = ? 
            AND m.exam_id = ?
+       WHERE ss.student_id = ?
        ORDER BY s.subject_name`,
-      [studentId, examId]
+      [studentId, examId, studentId]
     );
-
-    console.log(
-      `📊 Found ${results.length} subjects with marks for student ${studentId}, exam ${examId}`
-    );
-
-    // If no results found, return helpful message
-    if (results.length === 0) {
-      return res.status(404).json({
-        message: "No marks found for this student in the selected exam",
-        student,
-        exam,
-      });
-    }
 
     // 4. Process Each Subject with Detailed Grades
     const formattedSubjects = results.map((row) => {
@@ -136,8 +124,10 @@ const getStudentGradesheet = async (req, res) => {
       student,
       exam,
       academic_year: {
-        id: exam.academic_year_id,
-        name: exam.exam_year,
+        id: student.academic_year_id,
+        name: student.year_name,
+        start_date_bs: student.start_date_bs,
+        end_date_bs: student.end_date_bs,
       },
       subjects: formattedSubjects,
       gpa,
@@ -155,7 +145,7 @@ const getClassGradesheets = async (req, res) => {
     const { class_level } = req.params;
     const { faculty, academic_year_id, exam_id } = req.query;
 
-    console.log("🔥 Batch Request:", {
+    console.log("📥 Batch Request:", {
       class_level,
       faculty,
       academic_year_id,
@@ -187,35 +177,34 @@ const getClassGradesheets = async (req, res) => {
       exam_id: exam.id,
       exam_year_id: exam.exam_year_id,
       exam_name: exam.exam_name,
-      exam_class_level: exam.class_level,
     });
 
-    // 🔧 FIX: Find students who TOOK this exam (from marks table)
-    // Not based on current class_level or academic_year_id
+    // 🔧 FIX: Determine which year to use
+    // If academic_year_id is provided, use it; otherwise use exam's year
+    const yearToFilter = academic_year_id || exam.exam_year_id;
+
+    console.log("🎯 Filtering by year ID:", yearToFilter);
+
+    // Build Query for Students
     let sql = `
-      SELECT DISTINCT
+      SELECT 
         s.id,
-        s.first_name,
-        s.middle_name,
-        s.last_name,
-        s.registration_no,
-        s.symbol_no,
-        s.dob_bs,
-        s.dob_ad,
-        s.class_level,
-        s.faculty,
-        s.enrollment_year,
+        s.academic_year_id,
         ay.year_name,
         ay.id as year_id
-      FROM marks m
-      JOIN students s ON m.student_id = s.id
+      FROM students s
       LEFT JOIN academic_years ay ON s.academic_year_id = ay.id
-      WHERE m.exam_id = ?
+      WHERE s.class_level = ?
+      AND s.status = 'active'
     `;
+    const params = [class_level];
 
-    const params = [exam_id];
+    // Add year filter
+    if (yearToFilter) {
+      sql += ` AND s.academic_year_id = ?`;
+      params.push(yearToFilter);
+    }
 
-    // Optional: Filter by faculty if provided
     if (faculty && faculty !== "All") {
       sql += ` AND s.faculty = ?`;
       params.push(faculty);
@@ -228,18 +217,18 @@ const getClassGradesheets = async (req, res) => {
 
     const [students] = await db.query(sql, params);
 
-    console.log(`👥 Found ${students.length} students who took this exam`);
+    console.log(`👥 Found ${students.length} students`);
 
     if (students.length === 0) {
       return res.json({
         exam,
         academic_year: {
-          id: exam.exam_year_id,
+          id: yearToFilter,
           name: exam.exam_year,
         },
         reports: [],
         total_students: 0,
-        message: "No students found who took this exam",
+        message: "No students found matching the criteria",
       });
     }
 
@@ -247,9 +236,17 @@ const getClassGradesheets = async (req, res) => {
 
     // Generate Report for Each Student
     for (const st of students) {
-      const student = st; // Student info already complete from above query
+      const [studentRows] = await db.query(
+        `SELECT 
+          s.*,
+          ay.year_name
+         FROM students s
+         LEFT JOIN academic_years ay ON s.academic_year_id = ay.id
+         WHERE s.id = ?`,
+        [st.id]
+      );
+      const student = studentRows[0];
 
-      // 🔧 FIX: Query based on marks, not student_subjects
       const [results] = await db.query(
         `SELECT 
             s.subject_name, 
@@ -261,12 +258,14 @@ const getClassGradesheets = async (req, res) => {
             s.practical_credit_hour,
             m.theory_obtained, 
             m.practical_obtained
-         FROM marks m
-         JOIN subjects s ON m.subject_id = s.id
-         WHERE m.student_id = ? 
+         FROM student_subjects ss
+         JOIN subjects s ON ss.subject_id = s.id
+         LEFT JOIN marks m ON s.id = m.subject_id 
+             AND m.student_id = ? 
              AND m.exam_id = ?
+         WHERE ss.student_id = ?
          ORDER BY s.subject_name`,
-        [st.id, exam_id]
+        [st.id, exam_id, st.id]
       );
 
       console.log(
@@ -325,8 +324,8 @@ const getClassGradesheets = async (req, res) => {
     res.json({
       exam,
       academic_year: {
-        id: exam.exam_year_id,
-        name: exam.exam_year,
+        id: yearToFilter,
+        name: students[0]?.year_name || exam.exam_year,
       },
       reports,
       total_students: reports.length,
@@ -357,16 +356,13 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
 
     const student = students[0];
 
-    // Get all exams the student has appeared in
     const [exams] = await db.query(
       `SELECT DISTINCT 
         e.id,
         e.exam_name,
         e.exam_date,
-        e.class_level,
         e.is_final,
-        ay.year_name,
-        ay.id as year_id
+        ay.year_name
        FROM marks m
        JOIN exams e ON m.exam_id = e.id
        LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
@@ -414,10 +410,8 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
         exam_id: exam.id,
         exam_name: exam.exam_name,
         exam_date: exam.exam_date,
-        class_level: exam.class_level, // Shows which class the exam was for
         is_final: exam.is_final,
         year_name: exam.year_name,
-        year_id: exam.year_id,
         gpa: gpa,
         subjects_count: results.length,
       });
@@ -427,7 +421,6 @@ const getStudentPerformanceAcrossYears = async (req, res) => {
       student,
       performance,
       total_exams: exams.length,
-      academic_years_covered: [...new Set(exams.map((e) => e.year_name))],
     });
   } catch (error) {
     console.error("Student Performance Error:", error);
