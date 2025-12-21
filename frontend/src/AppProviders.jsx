@@ -4,8 +4,8 @@ import { SchoolSettingsProvider } from "./context/SchoolSettingsContext";
 import { AcademicYearProvider } from "./context/AcademicYearContext";
 
 /**
- * This wrapper only loads SchoolSettings and AcademicYear contexts
- * AFTER the user is authenticated.
+ * 🔥 FIXED: SchoolSettings is now ALWAYS available (even on login page)
+ * AcademicYear only loads after authentication
  */
 export const AppProviders = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
@@ -22,7 +22,7 @@ export const AppProviders = ({ children }) => {
     );
   }
 
-  // If user is logged in, wrap with all contexts
+  // 🔥 KEY FIX: If user is logged in, wrap with ALL contexts
   if (user) {
     return (
       <SchoolSettingsProvider>
@@ -31,6 +31,7 @@ export const AppProviders = ({ children }) => {
     );
   }
 
-  // If not logged in, just render children (Login page)
-  return children;
+  // 🔥 KEY FIX: If NOT logged in, still provide SchoolSettings
+  // (Login page needs it for school logo/name/branding)
+  return <SchoolSettingsProvider>{children}</SchoolSettingsProvider>;
 };
