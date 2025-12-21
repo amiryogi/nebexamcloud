@@ -2,13 +2,23 @@ import { useState, useEffect } from "react";
 import { getAllStudents } from "../services/studentService";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Edit, Trash2, UserPlus, Filter, User, Eye } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  UserPlus,
+  Filter,
+  User,
+  Eye,
+  Search,
+  X,
+} from "lucide-react";
 
-const API_BASE_URL = "http://localhost:5000"; // Add this constant
+const API_BASE_URL = "http://localhost:5000";
 
 const StudentList = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     class_level: "",
     faculty: "",
@@ -16,6 +26,21 @@ const StudentList = () => {
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
+    // First check sessionStorage (where AuthContext stores it)
+    const userStr = sessionStorage.getItem("user");
+    if (userStr) {
+      try {
+        const userObj = JSON.parse(userStr);
+        const token = userObj.token || userObj.accessToken;
+        if (token) {
+          return { Authorization: `Bearer ${token}` };
+        }
+      } catch (e) {
+        console.error("Error parsing user from sessionStorage:", e);
+      }
+    }
+
+    // Fallback to localStorage for backward compatibility
     let token = localStorage.getItem("token");
     if (!token) {
       const userStr = localStorage.getItem("user");
@@ -27,12 +52,6 @@ const StudentList = () => {
           console.error("Error parsing user from localStorage:", e);
         }
       }
-    }
-
-    // Debug: Log token status
-    console.log("🔑 Token found:", token ? "YES" : "NO");
-    if (token) {
-      console.log("🔑 Token preview:", token.substring(0, 20) + "...");
     }
 
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -55,7 +74,6 @@ const StudentList = () => {
     }
   };
 
-  // FIXED DELETE FUNCTION
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this student?"))
       return;
@@ -64,7 +82,6 @@ const StudentList = () => {
       console.log("🗑️ Deleting student ID:", id);
 
       const headers = getAuthHeaders();
-      console.log("📤 Sending headers:", headers);
 
       const response = await fetch(`${API_BASE_URL}/api/students/${id}`, {
         method: "DELETE",
@@ -73,8 +90,6 @@ const StudentList = () => {
           "Content-Type": "application/json",
         },
       });
-
-      console.log("📥 Delete response status:", response.status);
 
       if (response.ok) {
         toast.success("Student deleted successfully");
@@ -85,8 +100,7 @@ const StudentList = () => {
 
         if (response.status === 401) {
           toast.error("Session expired. Please login again.");
-          // Optionally redirect to login
-          // window.location.href = '/login';
+          window.location.href = "/login";
         } else {
           toast.error(errorData.message || "Failed to delete student");
         }
@@ -101,6 +115,28 @@ const StudentList = () => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
+
+  // Filter students based on search term
+  const filteredStudents = students.filter((student) => {
+    if (!searchTerm) return true;
+
+    const searchLower = searchTerm.toLowerCase();
+    const fullName = `${student.first_name} ${student.middle_name || ""} ${
+      student.last_name
+    }`.toLowerCase();
+    const regNo = (student.registration_no || "").toLowerCase();
+    const symbolNo = (student.symbol_no || "").toLowerCase();
+
+    return (
+      fullName.includes(searchLower) ||
+      regNo.includes(searchLower) ||
+      symbolNo.includes(searchLower)
+    );
+  });
+
   return (
     <div className="space-y-6 p-6">
       {/* Header Section */}
@@ -112,48 +148,87 @@ const StudentList = () => {
 
         <Link
           to="/students/add"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2 w-fit"
         >
           <UserPlus size={20} /> Add New Student
         </Link>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-center">
-        <div className="flex items-center gap-2 text-gray-600">
-          <Filter size={18} />
-          <span className="text-sm font-medium">Filters:</span>
+      {/* Search and Filter Bar */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-4">
+        {/* Search Box */}
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Search by name, registration number, or symbol number..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+              title="Clear search"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
-        <select
-          name="class_level"
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onChange={handleFilterChange}
-          value={filters.class_level}
-        >
-          <option value="">All Classes</option>
-          <option value="11">Grade 11</option>
-          <option value="12">Grade 12</option>
-        </select>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2 text-gray-600">
+            <Filter size={18} />
+            <span className="text-sm font-medium">Filters:</span>
+          </div>
 
-        <select
-          name="faculty"
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onChange={handleFilterChange}
-          value={filters.faculty}
-        >
-          <option value="">All Faculties</option>
-          <option value="Science">Science</option>
-          <option value="Management">Management</option>
-          <option value="Humanities">Humanities</option>
-        </select>
+          <select
+            name="class_level"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={handleFilterChange}
+            value={filters.class_level}
+          >
+            <option value="">All Classes</option>
+            <option value="11">Grade 11</option>
+            <option value="12">Grade 12</option>
+          </select>
+
+          <select
+            name="faculty"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={handleFilterChange}
+            value={filters.faculty}
+          >
+            <option value="">All Faculties</option>
+            <option value="Science">Science</option>
+            <option value="Management">Management</option>
+            <option value="Humanities">Humanities</option>
+          </select>
+
+          {/* Results Counter */}
+          {searchTerm && (
+            <span className="text-sm text-gray-600 ml-auto">
+              Found{" "}
+              <span className="font-semibold text-blue-600">
+                {filteredStudents.length}
+              </span>{" "}
+              of {students.length} students
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Data Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">
-            Loading students...
+          <div className="p-8 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="text-gray-500 mt-2">Loading students...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -170,8 +245,8 @@ const StudentList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
-                {students.length > 0 ? (
-                  students.map((student) => (
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.map((student) => (
                     <tr
                       key={student.id}
                       className="hover:bg-gray-50 transition"
@@ -206,7 +281,9 @@ const StudentList = () => {
                             </div>
                           </div>
                           <div className="font-medium text-gray-900">
-                            {student.first_name} {student.last_name}
+                            {student.first_name}{" "}
+                            {student.middle_name && student.middle_name + " "}
+                            {student.last_name}
                           </div>
                         </div>
                       </td>
@@ -255,8 +332,21 @@ const StudentList = () => {
                 ) : (
                   <tr>
                     <td colSpan="5" className="p-8 text-center text-gray-500">
-                      No students found. Try changing filters or add a new
-                      student.
+                      {searchTerm ? (
+                        <div>
+                          <p className="mb-2">
+                            No students found matching "{searchTerm}"
+                          </p>
+                          <button
+                            onClick={clearSearch}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                          >
+                            Clear search
+                          </button>
+                        </div>
+                      ) : (
+                        "No students found. Try changing filters or add a new student."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -265,6 +355,25 @@ const StudentList = () => {
           </div>
         )}
       </div>
+
+      {/* Summary Footer */}
+      {filteredStudents.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+            <div>
+              <span className="font-semibold text-gray-800">
+                {filteredStudents.length}
+              </span>{" "}
+              students displayed
+            </div>
+            {searchTerm && filteredStudents.length !== students.length && (
+              <div className="text-gray-500">
+                (filtered from {students.length} total)
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
