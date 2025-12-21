@@ -10,7 +10,7 @@ const Certificate = () => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // NEW: School Settings State
   const [schoolSettings, setSchoolSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -327,7 +327,7 @@ const Certificate = () => {
                   className="w-24 h-24 object-contain"
                 />
               )}
-              
+
               <div>
                 <h2 className="text-4xl font-bold text-purple-800 mb-2">
                   {schoolSettings.school_name}
@@ -480,7 +480,7 @@ const Certificate = () => {
               <p className="font-bold text-sm uppercase">
                 {schoolSettings.principal_name}
               </p>
-              <p className="font-bold text-sm uppercase">Principal</p>
+              <p className="font-bold text-sm uppercase">Campus Chief</p>
             </div>
           </div>
 
@@ -493,7 +493,9 @@ const Certificate = () => {
                   alt="School Seal"
                   className="h-24 object-contain"
                 />
-                <p className="text-xs text-gray-500 mt-2">Official School Seal</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Official School Seal
+                </p>
               </div>
             ) : (
               <div className="inline-block border-2 border-dashed border-gray-400 px-12 py-8 rounded-lg">

@@ -5,3 +5,149 @@ body {
   font-family: "Inter", sans-serif;
   background-color: #f8fafc; /* Slate-50 */
 }
+
+@media print {
+  /* Force hide sidebar, header, and navigation */
+  aside,
+  header,
+  nav.sidebar,
+  .sidebar,
+  [data-sidebar],
+  [role="banner"],
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset body */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: 100% !important;
+  }
+
+  /* Full width for main content */
+  main {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove all overflow restrictions */
+  html,
+  body,
+  main,
+  div {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Ensure content container takes full width */
+  main > div {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Page breaks */
+  .print\:break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Preserve colors for gradesheet */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Remove shadows except for gradesheet */
+  *:not([class*="gradesheet"]) {
+    box-shadow: none !important;
+  }
+
+  /* Prevent table breaks */
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Ensure images print */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Remove background colors except for specific elements */
+  *:not([class*="gradesheet"]):not(table):not(th):not(td) {
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+}
+
+/* ========================================
+   PRINT UTILITY CLASSES
+   ======================================== */
+
+/* Hide in print */
+.no-print,
+.print-hidden {
+  @media print {
+    display: none !important;
+  }
+}
+
+/* Show only in print */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}
+
+/* ========================================
+   CUSTOM SCROLLBAR (Optional)
+   ======================================== */
+
+/* For Webkit browsers (Chrome, Safari, Edge) */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* For Firefox */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}

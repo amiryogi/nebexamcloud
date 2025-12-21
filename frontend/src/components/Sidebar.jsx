@@ -48,7 +48,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-2xl z-50 flex flex-col">
+    <aside className="fixed top-0 left-0 h-screen w-64 bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-2xl z-50 flex flex-col print:hidden">
       {/* School Logo & Info Section - Fixed at top */}
       <div className="flex-shrink-0 p-6 border-b border-blue-700">
         <div className="flex items-center gap-3">
@@ -166,7 +166,7 @@ const Sidebar = () => {
                 <span className="text-sm">Promote Students</span>
               </NavLink>
 
-              <NavLink
+              {/* <NavLink
                 to="/students/graduated"
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
@@ -178,7 +178,7 @@ const Sidebar = () => {
               >
                 <GraduationCap size={18} />
                 <span className="text-sm">Alumni</span>
-              </NavLink>
+              </NavLink> */}
             </div>
           )}
         </div>
@@ -359,7 +359,7 @@ const Sidebar = () => {
         {/* Optional: Show logged in user info */}
         {schoolSettings?.principal_name && (
           <div className="px-4 py-3 bg-blue-800/50">
-            <p className="text-xs text-blue-300 mb-1">Principal</p>
+            <p className="text-xs text-blue-300 mb-1">Campus Chief</p>
             <p className="text-sm font-semibold truncate">
               {schoolSettings.principal_name}
             </p>

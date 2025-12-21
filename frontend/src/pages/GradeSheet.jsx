@@ -17,6 +17,7 @@ const NEBGradesheet = () => {
 
   const [reportData, setReportData] = useState(null);
   const [batchData, setBatchData] = useState([]);
+  const [batchExamInfo, setBatchExamInfo] = useState(null); // 🔥 NEW: Store exam info for batch
   const [loading, setLoading] = useState(false);
 
   const [schoolSettings, setSchoolSettings] = useState(null);
@@ -131,6 +132,7 @@ const NEBGradesheet = () => {
 
       setReportData(data);
       setBatchData([]);
+      setBatchExamInfo(null); // Clear batch exam info
       toast.success("Gradesheet generated successfully");
     } catch (error) {
       console.error("Generate report error:", error);
@@ -157,6 +159,7 @@ const NEBGradesheet = () => {
     setViewMode("batch");
     setBatchData([]);
     setReportData(null);
+    setBatchExamInfo(null);
 
     try {
       const params = new URLSearchParams({ exam_id: selectedExam });
@@ -186,7 +189,10 @@ const NEBGradesheet = () => {
 
       console.log("📊 Batch API Response:", data);
 
-      // 🔧 FIX: Extract reports array from nested structure
+      // 🔥 FIX: Store exam info separately
+      setBatchExamInfo(data.exam);
+
+      // Extract reports array
       const reportsArray = data.reports || [];
 
       console.log("📋 Reports array length:", reportsArray.length);
@@ -202,6 +208,7 @@ const NEBGradesheet = () => {
       console.error("Batch report error:", error);
       toast.error(error.message);
       setBatchData([]);
+      setBatchExamInfo(null);
     } finally {
       setLoading(false);
     }
@@ -235,7 +242,7 @@ const NEBGradesheet = () => {
         {/* Exam Selector */}
         <div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-xl">
           <label className="block text-sm font-bold text-gray-700 mb-2">
-            📝 Select Exam
+            📋 Select Exam
           </label>
           <select
             value={selectedExam}
@@ -267,7 +274,6 @@ const NEBGradesheet = () => {
                 <option value="">All Faculties</option>
                 <option value="Science">Science</option>
                 <option value="Management">Management</option>
-                <option value="Humanities">Humanities</option>
               </select>
               <input
                 type="text"
@@ -381,16 +387,17 @@ const NEBGradesheet = () => {
         <GradesheetTemplate data={reportData} schoolSettings={schoolSettings} />
       )}
 
-      {/* Batch Reports */}
+      {/* Batch Reports - 🔥 FIXED: Pass exam info to each report */}
       {!loading &&
         viewMode === "batch" &&
         batchData.length > 0 &&
-        schoolSettings && (
+        schoolSettings &&
+        batchExamInfo && (
           <div className="print:block">
             {batchData.map((report, idx) => (
               <GradesheetTemplate
                 key={idx}
-                data={report}
+                data={{ ...report, exam: batchExamInfo }} // 🔥 FIX: Merge exam info into each report
                 schoolSettings={schoolSettings}
               />
             ))}
@@ -429,10 +436,10 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
           <p className="text-sm mb-3">
             {schoolSettings?.school_address || "School Address"}
           </p>
-          <h2 className="text-2xl font-bold mb-4 mt-2">GRADE-SHEET</h2>
+          <h2 className="text-2xl font-bold mb-0 mt-2">GRADE-SHEET</h2>
         </div>
 
-        <div className="w-20 h-20 flex-shrink-0">
+        {/* <div className="w-20 h-10 flex-shrink-0">
           {schoolSettings?.school_seal_path && (
             <img
               src={`${API_BASE_URL}${schoolSettings.school_seal_path}`}
@@ -440,24 +447,35 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
               className="w-full h-full object-contain"
             />
           )}
-        </div>
+        </div> */}
+      </div>
+
+      {/* 🔥 FIXED: Examination Name - Now works for both single and batch */}
+      <div className="mb-2 text-2xl font-bold text-center">
+        {data.exam?.exam_name || "N/A"}
+        {/* {data.exam?.exam_date && (
+          <span className="ml-2 font-normal text-gray-600">
+            ({new Date(data.exam.exam_date).toLocaleDateString()})
+          </span>
+        )} */}
       </div>
 
       {/* Student Info */}
       <div className="mb-4 text-sm space-y-1">
         <p className="font-bold">
-          Student: {data.student.first_name} {data.student.last_name}
+          The GRADE (s) SECURED BY : {data.student.first_name}{" "}
+          {data.student.last_name}
         </p>
         <p>
-          DOB: {data.student.dob_bs} (
+          DATE OF BIRTH: {data.student.dob_bs} (
           {new Date(data.student.dob_ad).toLocaleDateString()})
         </p>
         <p>
-          Reg No: {data.student.registration_no || "N/A"} | Symbol:{" "}
+          REGISTRATION No: {data.student.registration_no || "N/A"} | SYMBOL NO:{" "}
           {data.student.symbol_no || "N/A"} | Class: {data.student.class_level}
         </p>
         <p>
-          Academic Year:{" "}
+          IN THE EXAMINATION CONDUCTED IN ACADEMIC YEAR:{" "}
           {data.academic_year?.name || data.student.enrollment_year}
         </p>
       </div>
@@ -556,7 +574,7 @@ const GradesheetTemplate = ({ data, schoolSettings }) => {
           <p className="font-bold">
             {schoolSettings?.principal_name || "Principal Name"}
           </p>
-          <p className="font-bold">PRINCIPAL</p>
+          <p className="font-bold">Campus Chief</p>
         </div>
         <p className="mt-4">DATE OF ISSUE: {new Date().toLocaleDateString()}</p>
       </div>

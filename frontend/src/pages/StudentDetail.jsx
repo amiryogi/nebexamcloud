@@ -30,7 +30,9 @@ const StudentDetail = () => {
         try {
           const userObj = JSON.parse(userStr);
           token = userObj.token || userObj.accessToken;
-        } catch (e) {}
+        } catch (e) {
+          console.log(e);
+        }
       }
     }
     return token ? { Authorization: `Bearer ${token}` } : {};
