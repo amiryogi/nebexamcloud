@@ -11,13 +11,14 @@ const AddStudent = () => {
   // 1. Form State
   const [formData, setFormData] = useState({
     first_name: "",
-    middle_name: "", // Added Field
+    middle_name: "",
     last_name: "",
     registration_no: "",
     symbol_no: "",
     gender: "Male",
     dob_bs: "",
-    parent_name: "",
+    father_name: "",
+    mother_name: "",
     enrollment_year: new Date().getFullYear() + 57, // e.g., 2024 -> 2081
     class_level: "11",
     faculty: "Science",
@@ -188,17 +189,18 @@ const AddStudent = () => {
                 />
               </div>
 
-              {/* Details Row */}
+              {/* Parent Details Row */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent's Name *
+                  Father's Name *
                 </label>
                 <input
                   type="text"
-                  name="parent_name"
+                  name="father_name"
                   required
                   onChange={handleChange}
                   className="w-full border rounded-lg px-3 py-2"
+                  placeholder="Full name of father"
                 />
               </div>
               <div>
@@ -216,6 +218,19 @@ const AddStudent = () => {
                 </select>
               </div>
 
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mother's Name *
+                </label>
+                <input
+                  type="text"
+                  name="mother_name"
+                  required
+                  onChange={handleChange}
+                  className="w-full border rounded-lg px-3 py-2"
+                  placeholder="Full name of mother"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   DOB (BS) *
@@ -229,6 +244,7 @@ const AddStudent = () => {
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Contact No
@@ -240,7 +256,7 @@ const AddStudent = () => {
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Address
                 </label>

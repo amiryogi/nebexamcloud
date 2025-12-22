@@ -4,7 +4,8 @@ import { AuthContext } from "../context/AuthContext";
 import { SchoolSettingsContext } from "../context/SchoolSettingsContext";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const isDevelopment = import.meta.env.DEV;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -31,14 +32,18 @@ const Login = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.username || !formData.password) {
+    if (!formData.username.trim() || !formData.password.trim()) {
       toast.error("Please enter both username and password");
       return;
     }
 
     try {
       setLoading(true);
-      await login(formData);
+      // Trim whitespace from credentials before sending
+      await login({
+        username: formData.username.trim(),
+        password: formData.password.trim(),
+      });
       toast.success("Login successful!");
       navigate("/");
     } catch (error) {
@@ -226,33 +231,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-700"
-                >
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <a
-                  href="#"
-                  className="font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Forgot password?
-                </a>
-              </div>
-            </div>
-
             {/* Submit Button */}
             <div>
               <button
@@ -290,20 +268,22 @@ const Login = () => {
             </div>
           </form>
 
-          {/* Demo Credentials Info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-xs text-blue-800 text-center">
-              <span className="font-semibold">Demo Credentials:</span>
-              <br />
-              Username: admin | Password: admin123
-            </p>
-          </div>
+          {/* Demo Credentials Info - Only shown in development */}
+          {isDevelopment && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-xs text-blue-800 text-center">
+                <span className="font-semibold">Demo Credentials:</span>
+                <br />
+                Username: admin | Password: admin123
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
-            © 2024{" "}
+            © {new Date().getFullYear()}{" "}
             {schoolSettings?.school_name || "NEB Student Management System"}
           </p>
         </div>

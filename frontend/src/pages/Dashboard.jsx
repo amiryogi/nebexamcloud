@@ -1,12 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAcademicYear } from "../context/AcademicYearContext";
 import { useSchoolSettings } from "../context/SchoolSettingsContext";
 import { dashboardAPI } from "../services/api";
 import AcademicYearSelector from "../components/AcademicYearSelector";
 import toast from "react-hot-toast";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
-const API_BASE_URL = "http://localhost:5000";
+// Chart color palette
+const CHART_COLORS = [
+  "#3b82f6", // blue
+  "#10b981", // emerald
+  "#8b5cf6", // violet
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#6366f1", // indigo
+];
 
 const Dashboard = () => {
   const { selectedYear } = useAcademicYear();
@@ -20,12 +43,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch dashboard stats whenever selected year changes
-  useEffect(() => {
-    fetchDashboardStats();
-  }, [selectedYear]);
-
-  const fetchDashboardStats = async () => {
+  // Fetch dashboard stats - wrapped in useCallback to satisfy useEffect dependency
+  const fetchDashboardStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -38,7 +57,12 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear]);
+
+  // Fetch dashboard stats whenever selected year changes
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
 
   // Loading State
   if (loading || settingsLoading) {
@@ -120,72 +144,123 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Class & Faculty Distribution */}
+      {/* Class & Faculty Distribution - Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Class Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Students by Class
+        {/* Class Distribution - Bar Chart */}
+        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">📊</span> Students by Class
           </h2>
-          <div className="space-y-3">
-            {stats?.students?.byClass &&
-            Object.keys(stats.students.byClass).length > 0 ? (
-              Object.entries(stats.students.byClass).map(
-                ([classKey, count]) => {
-                  const classLevel = classKey.replace("class_", "");
-                  return (
-                    <div
-                      key={classKey}
-                      className="flex justify-between items-center"
-                    >
-                      <span className="text-gray-700">Class {classLevel}</span>
-                      <span className="font-semibold text-blue-600">
-                        {count} students
-                      </span>
-                    </div>
-                  );
-                }
-              )
-            ) : (
-              <p className="text-gray-500">No students enrolled yet</p>
-            )}
-          </div>
+          {stats?.students?.byClass &&
+          Object.keys(stats.students.byClass).length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={Object.entries(stats.students.byClass).map(
+                    ([key, value]) => ({
+                      name: `Class ${key.replace("class_", "")}`,
+                      students: value,
+                    })
+                  )}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                  <Bar
+                    dataKey="students"
+                    fill="url(#blueGradient)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <defs>
+                    <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#1d4ed8" />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState
+              icon="📚"
+              title="No students enrolled"
+              description="Add students to see class distribution"
+              actionLink="/students/add"
+              actionLabel="Add Student"
+            />
+          )}
         </div>
 
-        {/* Faculty Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Students by Faculty
+        {/* Faculty Distribution - Pie Chart */}
+        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">🎓</span> Students by Faculty
           </h2>
-          <div className="space-y-3">
-            {stats?.students?.byFaculty &&
-            Object.keys(stats.students.byFaculty).length > 0 ? (
-              Object.entries(stats.students.byFaculty).map(
-                ([faculty, count]) => (
-                  <div
-                    key={faculty}
-                    className="flex justify-between items-center"
+          {stats?.students?.byFaculty &&
+          Object.keys(stats.students.byFaculty).length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={Object.entries(stats.students.byFaculty).map(
+                      ([key, value]) => ({
+                        name: key,
+                        value: value,
+                      })
+                    )}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      `${name} (${(percent * 100).toFixed(0)}%)`
+                    }
+                    labelLine={false}
                   >
-                    <span className="text-gray-700">{faculty}</span>
-                    <span className="font-semibold text-green-600">
-                      {count} students
-                    </span>
-                  </div>
-                )
-              )
-            ) : (
-              <p className="text-gray-500">No faculty data available</p>
-            )}
-          </div>
+                    {Object.keys(stats.students.byFaculty).map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState
+              icon="🎓"
+              title="No faculty data"
+              description="Faculty distribution will appear here"
+            />
+          )}
         </div>
       </div>
 
       {/* Upcoming & Recent Exams */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Exams */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Upcoming Exams
+        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">📅</span> Upcoming Exams
           </h2>
           {stats?.exams?.upcoming?.length > 0 ? (
             <div className="space-y-3">
@@ -194,14 +269,20 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">No upcoming exams scheduled</p>
+            <EmptyState
+              icon="📅"
+              title="No upcoming exams"
+              description="Schedule exams to see them here"
+              actionLink="/exams"
+              actionLabel="Schedule Exam"
+            />
           )}
         </div>
 
         {/* Recent Exams */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Recent Exams
+        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">📋</span> Recent Exams
           </h2>
           {stats?.exams?.recent?.length > 0 ? (
             <div className="space-y-3">
@@ -210,7 +291,11 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">No recent exams</p>
+            <EmptyState
+              icon="📋"
+              title="No recent exams"
+              description="Completed exams will appear here"
+            />
           )}
         </div>
       </div>
@@ -428,19 +513,41 @@ const SchoolHeader = ({ schoolSettings, schoolName, logoUrl }) => {
   );
 };
 
-// Stat Card Component
+// Stat Card Component - Enhanced with gradients and animations
 const StatCard = ({ title, value, icon, color, link, subtitle }) => {
+  // Map color classes to gradient classes
+  const gradientMap = {
+    "bg-blue-500": "bg-gradient-to-br from-blue-500 to-blue-700",
+    "bg-green-500": "bg-gradient-to-br from-emerald-500 to-emerald-700",
+    "bg-purple-500": "bg-gradient-to-br from-purple-500 to-purple-700",
+    "bg-orange-500": "bg-gradient-to-br from-orange-500 to-orange-700",
+  };
+
+  const gradientClass = gradientMap[color] || color;
+
   const CardContent = (
     <div
-      className={`${color} text-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer`}
+      className={`${gradientClass} text-white rounded-xl shadow-lg p-6 
+        transition-all duration-300 cursor-pointer 
+        hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1
+        relative overflow-hidden group`}
     >
-      <div className="flex justify-between items-start">
+      {/* Background decorative element */}
+      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+      
+      <div className="flex justify-between items-start relative z-10">
         <div>
-          <p className="text-white/80 text-sm font-medium">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
-          {subtitle && <p className="text-white/70 text-xs mt-1">{subtitle}</p>}
+          <p className="text-white/90 text-sm font-medium uppercase tracking-wide">
+            {title}
+          </p>
+          <p className="text-4xl font-bold mt-2 drop-shadow-sm">{value}</p>
+          {subtitle && (
+            <p className="text-white/80 text-xs mt-2 font-medium">{subtitle}</p>
+          )}
         </div>
-        <div className="text-4xl opacity-80">{icon}</div>
+        <div className="text-5xl opacity-90 group-hover:scale-110 transition-transform duration-300">
+          {icon}
+        </div>
       </div>
     </div>
   );
@@ -485,16 +592,53 @@ const ExamCard = ({ exam, isPast = false }) => {
   );
 };
 
-// Quick Action Button Component
+// Quick Action Button Component - Enhanced
 const QuickActionButton = ({ to, icon, label, color }) => {
+  const gradientMap = {
+    "bg-blue-500 hover:bg-blue-600": "bg-gradient-to-br from-blue-500 to-blue-700",
+    "bg-green-500 hover:bg-green-600": "bg-gradient-to-br from-emerald-500 to-emerald-700",
+    "bg-purple-500 hover:bg-purple-600": "bg-gradient-to-br from-purple-500 to-purple-700",
+    "bg-orange-500 hover:bg-orange-600": "bg-gradient-to-br from-orange-500 to-orange-700",
+  };
+
+  const gradientClass = gradientMap[color] || color;
+
   return (
     <Link
       to={to}
-      className={`${color} text-white rounded-lg p-4 text-center transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105`}
+      className={`${gradientClass} text-white rounded-xl p-4 text-center 
+        transition-all duration-300 shadow-lg 
+        hover:shadow-xl hover:scale-105 hover:-translate-y-1
+        relative overflow-hidden group`}
     >
-      <div className="text-3xl mb-2">{icon}</div>
-      <p className="text-sm font-medium">{label}</p>
+      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative z-10">
+        <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">
+          {icon}
+        </div>
+        <p className="text-sm font-semibold">{label}</p>
+      </div>
     </Link>
+  );
+};
+
+// Empty State Component - Beautiful empty state with optional CTA
+const EmptyState = ({ icon, title, description, actionLink, actionLabel }) => {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <div className="text-5xl mb-4 opacity-50">{icon}</div>
+      <h3 className="text-lg font-semibold text-gray-600 mb-1">{title}</h3>
+      <p className="text-sm text-gray-400 mb-4">{description}</p>
+      {actionLink && actionLabel && (
+        <Link
+          to={actionLink}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300"
+        >
+          <span>➕</span>
+          {actionLabel}
+        </Link>
+      )}
+    </div>
   );
 };
 

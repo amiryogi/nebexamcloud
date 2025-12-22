@@ -11,7 +11,6 @@ const EditStudent = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // 1. Form State - 🔥 NOW INCLUDES academic_year_id
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -20,9 +19,9 @@ const EditStudent = () => {
     symbol_no: "",
     gender: "Male",
     dob_bs: "",
-    parent_name: "",
+    father_name: "",
+    mother_name: "",
     enrollment_year: "",
-    academic_year_id: "", // 🔥 ADDED
     class_level: "11",
     faculty: "Science",
     section: "A",
@@ -32,88 +31,31 @@ const EditStudent = () => {
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-
-  // 2. Subject Selection State
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
 
-  // 🔥 NEW: Academic Years State
-  const [academicYears, setAcademicYears] = useState([]);
-
-  // Helper: Get Token
   const getAuthHeaders = () => {
+    const userStr = sessionStorage.getItem("user");
+    if (userStr) {
+      try {
+        const userObj = JSON.parse(userStr);
+        const token = userObj.token || userObj.accessToken;
+        if (token) return { Authorization: `Bearer ${token}` };
+      } catch (e) {}
+    }
     let token = localStorage.getItem("token");
-
     if (!token) {
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
           const userObj = JSON.parse(userStr);
           token = userObj.token || userObj.accessToken;
-        } catch (e) {
-          console.error("Error parsing user from localStorage", e);
-        }
+        } catch (e) {}
       }
     }
-
-    if (token === "undefined" || token === "null") token = null;
-
-    if (!token) {
-      console.warn("No auth token found. Request might fail with 401.");
-    }
-
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // Helper: Safely parse JSON or return text error
-  const safeJson = async (response) => {
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      return await response.json();
-    }
-    const text = await response.text();
-    return {
-      isError: true,
-      message: `Server returned non-JSON: ${text.substring(0, 150)}...`,
-      raw: text,
-    };
-  };
-
-  // 🔥 NEW: Fetch Academic Years
-  const fetchAcademicYears = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/academic-years`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        console.warn("Academic years fetch failed:", response.status);
-        setAcademicYears([]); // Ensure it stays as empty array
-        return;
-      }
-
-      const data = await safeJson(response);
-
-      if (data.isError) {
-        console.error("Academic years error:", data.message);
-        setAcademicYears([]); // Ensure it stays as empty array
-        return;
-      }
-
-      // ✅ Ensure data is an array
-      if (Array.isArray(data)) {
-        setAcademicYears(data);
-      } else {
-        console.error("Academic years response is not an array:", data);
-        setAcademicYears([]);
-      }
-    } catch (error) {
-      console.error("Academic years fetch error:", error);
-      setAcademicYears([]); // Ensure it stays as empty array
-    }
-  };
-
-  // Helper: Fetch Subjects
   const fetchSubjects = async (classLevel, faculty) => {
     try {
       const params = new URLSearchParams({
@@ -126,59 +68,34 @@ const EditStudent = () => {
       });
 
       if (!response.ok) {
-        console.warn("Subjects fetch failed with status:", response.status);
         setAvailableSubjects([]);
         return;
       }
 
-      const data = await safeJson(response);
-      if (data.isError) {
-        console.error("Subject fetch error (non-json):", data.message);
-        setAvailableSubjects([]);
-        return;
-      }
+      const data = await response.json();
       setAvailableSubjects(data);
     } catch (error) {
       console.error("Subject fetch error:", error);
     }
   };
 
-  // 3. FETCH DATA ON MOUNT
   useEffect(() => {
     const fetchData = async () => {
       try {
         if (!id) throw new Error("Invalid Student ID");
 
-        // A. Fetch Academic Years first
-        await fetchAcademicYears();
-
-        // B. Fetch Student Details
         const studentRes = await fetch(`${API_BASE_URL}/api/students/${id}`, {
           headers: getAuthHeaders(),
         });
 
         if (!studentRes.ok) {
-          if (studentRes.status === 401)
-            throw new Error("Unauthorized - Please Login");
+          if (studentRes.status === 401) throw new Error("Unauthorized");
           if (studentRes.status === 404) throw new Error("Student not found");
-          if (studentRes.status === 500) {
-            const errBody = await safeJson(studentRes);
-            const msg =
-              errBody.message || errBody.raw || "Internal Server Error";
-            throw new Error(`Server Error (500): ${msg}`);
-          }
-
-          const errData = await safeJson(studentRes);
-          throw new Error(errData.message || `API Error: ${studentRes.status}`);
+          throw new Error("Failed to fetch student");
         }
 
-        const studentData = await safeJson(studentRes);
+        const studentData = await studentRes.json();
 
-        if (studentData.isError) {
-          throw new Error(studentData.message);
-        }
-
-        // 🔥 UPDATED: Populate Form INCLUDING academic_year_id
         setFormData({
           first_name: studentData.first_name || "",
           middle_name: studentData.middle_name || "",
@@ -187,9 +104,9 @@ const EditStudent = () => {
           symbol_no: studentData.symbol_no || "",
           gender: studentData.gender || "Male",
           dob_bs: studentData.dob_bs || "",
-          parent_name: studentData.parent_name || "",
+          father_name: studentData.father_name || "",
+          mother_name: studentData.mother_name || "",
           enrollment_year: studentData.enrollment_year || "",
-          academic_year_id: studentData.academic_year_id || "", // 🔥 ADDED
           class_level: studentData.class_level || "11",
           faculty: studentData.faculty || "Science",
           section: studentData.section || "A",
@@ -197,12 +114,6 @@ const EditStudent = () => {
           contact_no: studentData.contact_no || "",
         });
 
-        console.log(
-          "✅ Loaded student academic_year_id:",
-          studentData.academic_year_id
-        );
-
-        // Set Image Preview if exists
         if (studentData.image_url) {
           const imgUrl = studentData.image_url.startsWith("http")
             ? studentData.image_url
@@ -210,12 +121,10 @@ const EditStudent = () => {
           setImagePreview(imgUrl);
         }
 
-        // Set Selected Subjects
         if (studentData.subjects && Array.isArray(studentData.subjects)) {
           setSelectedSubjects(studentData.subjects.map((s) => s.id));
         }
 
-        // C. Fetch Available Subjects
         await fetchSubjects(
           studentData.class_level || "11",
           studentData.faculty || "Science"
@@ -229,9 +138,8 @@ const EditStudent = () => {
     };
 
     fetchData();
-  }, [id, navigate]);
+  }, [id]);
 
-  // Re-fetch subjects if user changes Class/Faculty manually
   const handleAcademicChange = async (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -270,39 +178,16 @@ const EditStudent = () => {
 
     try {
       const data = new FormData();
-
-      // 🔧 FIX: Convert empty strings to null and append all fields properly
       Object.keys(formData).forEach((key) => {
-        const value = formData[key];
-
-        // Convert empty string to null, otherwise use the value
-        if (value === "" || value === null || value === undefined) {
-          // Don't append null/empty values - let backend handle defaults
-          // Exception: academic_year_id should be sent if it exists
-          if (key === "academic_year_id" && value) {
-            data.append(key, value);
-          }
-          // Skip other empty values
-          return;
-        }
-
-        // Append non-empty values
-        data.append(key, value);
+        data.append(key, formData[key]);
       });
 
-      console.log("📤 Form data being sent:");
-      for (let [key, value] of data.entries()) {
-        console.log(`  ${key}: ${value}`);
-      }
-
-      // Only append image if a new one was selected
       if (image) {
         data.append("image", image);
       }
 
       data.append("subject_ids", JSON.stringify(selectedSubjects));
 
-      // PUT Request
       const response = await fetch(`${API_BASE_URL}/api/students/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -310,15 +195,15 @@ const EditStudent = () => {
       });
 
       if (!response.ok) {
-        const err = await safeJson(response);
+        const err = await response.json();
         throw new Error(err.message || "Update failed");
       }
 
       toast.success("Student updated successfully!");
       navigate("/students");
     } catch (error) {
-      console.error("❌ Update error:", error);
-      toast.error(error.message || "Update failed. Check console for details.");
+      console.error(error);
+      toast.error(error.message || "Update failed");
     } finally {
       setLoading(false);
     }
@@ -348,13 +233,13 @@ const EditStudent = () => {
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-8"
       >
-        {/* Section 1: Personal Details */}
+        {/* Personal Details */}
         <div>
           <h3 className="text-lg font-semibold text-gray-700 border-b pb-2 mb-4">
             Personal Details
           </h3>
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Image Upload Column */}
+            {/* Image Upload */}
             <div className="w-full md:w-48 flex-shrink-0 flex flex-col items-center gap-4">
               <div className="w-40 h-40 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 relative hover:border-blue-400 transition-colors">
                 {imagePreview ? (
@@ -381,13 +266,12 @@ const EditStudent = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 text-center">
-                Click to change photo
+                Click to change
               </p>
             </div>
 
-            {/* Input Fields Column */}
+            {/* Input Fields */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* Name Row */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name *
@@ -398,7 +282,7 @@ const EditStudent = () => {
                   required
                   value={formData.first_name}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
               <div>
@@ -410,7 +294,7 @@ const EditStudent = () => {
                   name="middle_name"
                   value={formData.middle_name}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
               <div>
@@ -423,20 +307,19 @@ const EditStudent = () => {
                   required
                   value={formData.last_name}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
 
-              {/* Details Row */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent's Name *
+                  Father's Name *
                 </label>
                 <input
                   type="text"
-                  name="parent_name"
+                  name="father_name"
                   required
-                  value={formData.parent_name}
+                  value={formData.father_name}
                   onChange={handleChange}
                   className="w-full border rounded-lg px-3 py-2"
                 />
@@ -457,6 +340,19 @@ const EditStudent = () => {
                 </select>
               </div>
 
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mother's Name *
+                </label>
+                <input
+                  type="text"
+                  name="mother_name"
+                  required
+                  value={formData.mother_name}
+                  onChange={handleChange}
+                  className="w-full border rounded-lg px-3 py-2"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   DOB (BS) *
@@ -471,6 +367,7 @@ const EditStudent = () => {
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Contact No
@@ -483,7 +380,7 @@ const EditStudent = () => {
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Address
                 </label>
@@ -499,41 +396,12 @@ const EditStudent = () => {
           </div>
         </div>
 
-        {/* Section 2: Academic Details */}
+        {/* Academic Details */}
         <div>
           <h3 className="text-lg font-semibold text-gray-700 border-b pb-2 mb-4">
             Academic Details
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 🔥 NEW: Academic Year Selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Academic Year
-              </label>
-              <select
-                name="academic_year_id"
-                value={formData.academic_year_id}
-                onChange={handleChange}
-                className="w-full border rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Keep Current Year</option>
-                {Array.isArray(academicYears) && academicYears.length > 0 ? (
-                  academicYears.map((year) => (
-                    <option key={year.id} value={year.id}>
-                      {year.year_name} {year.is_current ? "(Current)" : ""}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>
-                    Loading academic years...
-                  </option>
-                )}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Leave blank to keep student's current academic year
-              </p>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Enrollment Year (BS)
@@ -546,7 +414,6 @@ const EditStudent = () => {
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Class Level
@@ -561,7 +428,6 @@ const EditStudent = () => {
                 <option value="12">Grade 12</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Faculty
@@ -577,7 +443,6 @@ const EditStudent = () => {
                 <option value="Humanities">Humanities</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 NEB Reg. No
@@ -585,13 +450,11 @@ const EditStudent = () => {
               <input
                 type="text"
                 name="registration_no"
-                placeholder="Optional"
                 value={formData.registration_no}
                 onChange={handleChange}
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Symbol No
@@ -599,13 +462,11 @@ const EditStudent = () => {
               <input
                 type="text"
                 name="symbol_no"
-                placeholder="Optional"
                 value={formData.symbol_no}
                 onChange={handleChange}
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Section
@@ -613,7 +474,6 @@ const EditStudent = () => {
               <input
                 type="text"
                 name="section"
-                placeholder="e.g. A"
                 value={formData.section}
                 onChange={handleChange}
                 className="w-full border rounded-lg px-3 py-2"
@@ -622,23 +482,11 @@ const EditStudent = () => {
           </div>
         </div>
 
-        {/* Section 3: Subject Enrollment */}
+        {/* Subject Enrollment */}
         <div>
           <h3 className="text-lg font-semibold text-gray-700 border-b pb-2 mb-4">
             Subject Enrollment
           </h3>
-          <div className="bg-blue-50 p-4 rounded-lg mb-4 text-sm text-blue-800">
-            <div>
-              Showing subjects for{" "}
-              <strong>
-                Class {formData.class_level} ({formData.faculty})
-              </strong>
-              .
-              <br />
-              Update selections if necessary.
-            </div>
-          </div>
-
           {availableSubjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {availableSubjects.map((sub) => (
@@ -660,24 +508,14 @@ const EditStudent = () => {
                     <span className="font-semibold block">
                       {sub.subject_name}
                     </span>
-                    <div
-                      className={`text-xs mt-1 ${
-                        selectedSubjects.includes(sub.id)
-                          ? "text-blue-100"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      Code: {sub.theory_code}
-                    </div>
+                    <div className="text-xs mt-1">Code: {sub.theory_code}</div>
                   </div>
                 </label>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-              <p className="text-gray-500 font-medium">
-                No subjects found for this class/faculty.
-              </p>
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No subjects found</p>
             </div>
           )}
         </div>
