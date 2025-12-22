@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Building2, Upload, Trash2, Save, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = "http://localhost:5000";
+// Hardcoded for production stability
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np";
 
 const SchoolSettings = () => {
   const [settings, setSettings] = useState({

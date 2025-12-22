@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Camera, Save, ArrowLeft, Loader2 } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np"; // Hardcoded for production
 
 const EditStudent = () => {
   const { id } = useParams();

@@ -6,7 +6,7 @@ import { AuthContext } from "./AuthContext";
 const SchoolSettingsContext = createContext();
 
 // API Base URL
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np"; // Hardcoded for production
 
 // Provider Component
 export const SchoolSettingsProvider = ({ children }) => {

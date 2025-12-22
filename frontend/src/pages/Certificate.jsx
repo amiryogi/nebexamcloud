@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Printer, Loader2, AlertCircle, Award } from "lucide-react";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np";
 
 const Certificate = () => {
   const [searchTerm, setSearchTerm] = useState("");

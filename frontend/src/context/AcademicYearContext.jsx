@@ -53,7 +53,7 @@ export const AcademicYearProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await examAPI.getAcademicYears();
-      const years = response.data || [];
+      const years = Array.isArray(response.data) ? response.data : [];
 
       // If no years exist, add current year
       if (years.length === 0) {

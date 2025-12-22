@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, Printer, Loader2, AlertCircle, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np"; // Hardcoded for production
 
 const NEBGradesheet = () => {
   const [viewMode, setViewMode] = useState("single");

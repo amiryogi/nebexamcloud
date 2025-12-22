@@ -3,7 +3,8 @@ import { Calendar, Plus, Trash2, CheckCircle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { convertBStoAD } from "../utils/dateConverter";
 
-const API_BASE_URL = "http://localhost:5000";
+// Hardcoded for production stability
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np";
 
 const AcademicYears = () => {
   const [years, setYears] = useState([]);

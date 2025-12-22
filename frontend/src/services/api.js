@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // Base API URL - Update this based on your environment
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// Hardcoded for production stability
+const API_URL = "https://svc.nevanhandicraft.com.np/api";
 
 // Create axios instance with default config
 const api = axios.create({

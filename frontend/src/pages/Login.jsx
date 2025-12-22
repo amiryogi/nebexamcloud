@@ -4,7 +4,8 @@ import { AuthContext } from "../context/AuthContext";
 import { SchoolSettingsContext } from "../context/SchoolSettingsContext";
 import toast from "react-hot-toast";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// Hardcoded for production stability - Login.jsx uses base URL for images
+const API_BASE_URL = "https://svc.nevanhandicraft.com.np";
 const isDevelopment = import.meta.env.DEV;
 
 const Login = () => {

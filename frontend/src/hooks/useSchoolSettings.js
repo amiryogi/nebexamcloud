@@ -13,7 +13,8 @@ const useSchoolSettings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  // Hardcoded for production stability
+  const API_BASE = "https://svc.nevanhandicraft.com.np"; // No /api suffix as per original logic which adds it later
 
   const fetchSettings = async () => {
     try {

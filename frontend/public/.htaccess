@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # PROXY API REQUESTS TO NODE.JS BACKEND
+  # REPLACE 'YOUR_PORT' WITH THE ACTUAL PORT FROM YOUR CPANEL NODE.JS APP
+  # Example: RewriteRule ^api/(.*) http://127.0.0.1:3000/api/$1 [P,L]
+  RewriteRule ^api/(.*) http://127.0.0.1:YOUR_NODE_PORT/api/$1 [P,L]
+  RewriteRule ^uploads/(.*) http://127.0.0.1:YOUR_NODE_PORT/uploads/$1 [P,L]
+
+  # REACT SPA ROUTING
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  RewriteRule . /index.html [L]
+</IfModule>

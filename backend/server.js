@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const helmet = require("helmet");
 const dotenv = require("dotenv");
 const db = require("./config/db");
 
@@ -25,13 +27,37 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Security Middleware (configured for production)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: false, // Disable COOP to avoid HTTP issues
+  contentSecurityPolicy: false,
+}));
+
+// CORS Configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(",") 
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      var msg = 'The CORS policy for this site does not ' +
+                'allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static Folders for Uploads
-app.use("/uploads", express.static("uploads"));
+// Static Folders for Uploads (use absolute path for production)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- API Routes ---
 
@@ -55,21 +81,23 @@ app.get("/", (req, res) => {
   res.send("NEB Student Management API is running...");
 });
 
-// Test Database Connection
-app.get("/test-db", async (req, res) => {
-  try {
-    const [rows] = await db.query("SELECT 1 + 1 AS solution");
-    res.json({
-      message: "Database connected successfully",
-      result: rows[0].solution,
-    });
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    res
-      .status(500)
-      .json({ message: "Database connection failed", error: error.message });
-  }
-});
+// Test Database Connection (Development Only)
+if (process.env.NODE_ENV === 'development') {
+  app.get("/test-db", async (req, res) => {
+    try {
+      const [rows] = await db.query("SELECT 1 + 1 AS solution");
+      res.json({
+        message: "Database connected successfully",
+        result: rows[0].solution,
+      });
+    } catch (error) {
+      console.error("Database connection failed:", error);
+      res
+        .status(500)
+        .json({ message: "Database connection failed", error: error.message });
+    }
+  });
+}
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -98,6 +126,21 @@ app.use((err, req, res, next) => {
     message: "Something went wrong!",
     error: process.env.NODE_ENV === "development" ? err.message : undefined,
   });
+});
+
+// --- Frontend Static File Serving ---
+
+// Serve static files from the 'svc' directory (where frontend dist files are uploaded)
+// Assuming directory structure:
+// /home/nevanhan/svc_backend/ (where server.js is)
+// /home/nevanhan/svc/ (where index.html and assets/ are)
+const frontendPath = path.join(__dirname, "../svc");
+app.use(express.static(frontendPath));
+
+// Handle React Routing - serve index.html for any unknown route
+// MUST BE AFTER API ROUTES
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // Start Server

@@ -1,0 +1,5 @@
+PassengerAppRoot "/home/nevanhan/svc_backend"
+PassengerBaseURI "/"
+PassengerNodejs "/home/nevanhan/nodevenv/svc_backend/22/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
